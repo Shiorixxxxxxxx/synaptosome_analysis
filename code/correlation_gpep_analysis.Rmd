@@ -1,0 +1,64 @@
+---
+title: "expression_pattern_plot"
+author: "Shiori"
+date: "2026-01-27"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(openxlsx)
+library(ggplot2)
+library(venndir)
+library(ggbeeswarm)
+library(ggpubr)
+library(rstatix)
+library(stats)
+library(bio3d)
+library(httr)
+library(jsonlite)
+
+source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/Utils_correlation_gpep_analysis.R")
+
+```
+
+#synaptosome correlation pattern のGOとline plot
+```{r, fig.width=8, fig.height=5}
+
+s_cor <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/CC_sps_cor.xlsx", 1)
+igot_zscore<- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.1_analysis.xlsx", "igot_zscore")
+gpep_zscore<- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.1_analysis.xlsx", "gpep_zscore")
+
+output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/"
+output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
+
+s_cor_GO<-GO_analysis(s_cor, "BP")
+s_cor_GOplot<-GO_plot(s_cor_GO, "BP")
+saveRDS(s_cor_GOplot, paste0(output_dir_fig, "s_cor_GOplot.rds"))
+
+write.xlsx(s_cor_GO, paste0(output_dir, "sps_cor_protein_BP_enrichment_res.xlsx"))
+tar_ID<-"GO:0050808" #synapse organization
+GO_res<-s_cor_GO
+
+tar_GN<-extract_GN(s_cor_GO, tar_ID)
+
+tar_igot_df<-igot_zscore%>%filter(GN %in% tar_GN, !is.na(igot_cluster))%>%select(GN, site_ID, igot_cluster,ends_with("igot"))
+tar_gpep_df<-gpep_zscore%>%filter(GN %in% tar_GN, !is.na(gpep_cluster))%>%select(GN, site_ID, glycan_ID,acc_site_glycan_ID, gpep_cluster, ends_with("imp"))
+
+igot_plot_df<-trans_longdata(tar_igot_df)%>%
+              mutate(group_key = ifelse(igot_cluster == 1, "decre", "incre"),
+                     pep_group_key = paste0(site_ID, "_", group_key)) 
+gpep_plot_df<-trans_longdata_gpep_lineplot(tar_gpep_df)%>%
+              mutate(pep_group_key = paste0(acc_site_glycan_ID, "_", group_key)) 
+
+igot_plot<-expression_plot(igot_plot_df)
+gpep_plot<-expression_plot(gpep_plot_df)
+
+saveRDS(igot_plot, paste0(output_dir_fig, "cor_acc_expression_igot_lineplot.rds"))
+saveRDS(gpep_plot, paste0(output_dir_fig, "cor_acc_expression_gpep_lineplot.rds"))
+
+
+```

@@ -1,0 +1,73 @@
+---
+title: "sps_correlation_analysis"
+author: "Shiori"
+date: "2025-09-30"
+output: html_document
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(stringr)
+library(openxlsx)
+library(maSigPro)
+library(ggplot2)
+
+source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_pattern_analysis.4.0.R")
+source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_correlation_analysis.R")
+```
+
+# data input
+```{r}
+sps_df   <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
+whole_df <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
+
+whole_gpep  <- select_colomns_with_distinct_rows(whole_df, "gpep") 
+whole_igot  <- select_colomns_with_distinct_rows(whole_df, "igot")
+whole_ratio <- select_colomns_with_distinct_rows(whole_df, "ratio")
+sps_gpep    <- select_colomns_with_distinct_rows(sps_df, "gpep")
+sps_igot    <- select_colomns_with_distinct_rows(sps_df, "igot")
+sps_ratio   <- select_colomns_with_distinct_rows(sps_df, "ratio")
+```
+
+```{r}
+# find correlation between gpep and igot for each site
+whole_cor <- test_cor_for_site(whole_gpep, whole_igot, "whole")
+whole_df  <- full_join(whole_df, whole_cor, by ="acc_site_glycan_ID")
+whole_sig <- find_sig_correlated_site(whole_df, "gpep_igot_cor_p_value", 0.05)
+
+sps_cor   <- test_cor_for_site(sps_gpep, sps_igot, "sps")
+sps_df    <- full_join(sps_df, sps_cor, by ="acc_site_glycan_ID")
+sps_sig   <- find_sig_correlated_site(sps_df, "gpep_igot_cor_p_value", 0.05)
+
+```
+
+```{r}
+# output summary file
+whole_output <- cluster_number_output_list(
+  whole_sig,
+  whole_gpep_cluster,
+  whole_igot_cluster,
+  whole_ratio_cluster,
+  whole_gpep_zscore,
+  whole_igot_zscore,
+  whole_ratio_zscore
+)
+
+sps_output <-
+  cluster_number_output_list(
+    sps_sig,
+    sps_gpep_cluster,
+    sps_igot_cluster,
+    sps_ratio_cluster,
+    sps_gpep_zscore,
+    sps_igot_zscore,
+    sps_ratio_zscore
+  )
+
+ output_dir <- "G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/"
+ write.xlsx(whole_output, paste0(output_dir, "whole_pattern_result.4.2_restrict.xlsx"))
+ write.xlsx(sps_output, paste0(output_dir, "sps_pattern_result.4.2_restrict.xlsx"))
+```

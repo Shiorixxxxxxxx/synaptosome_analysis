@@ -1,0 +1,289 @@
+---
+title: "sps_heatmap_analysis 3.0"
+author: "Shiori"
+date: "2025-09-30"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(openxlsx)
+library(ggplot2)
+library(clusterProfiler)
+library(org.Mm.eg.db) 
+library(reshape2)
+library(cluster)
+library(factoextra)
+library(heatmaply)
+library(RColorBrewer)
+library(venndir)
+library(textshaping)
+
+source("./utils_heatmap_modified.R")
+```
+
+```{r}
+
+# data_input
+s <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.1_analysis.xlsx", "pattern_result")
+w <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.1.xlsx","pattern_result")
+
+# To delete next time (Round 2)
+# To obtain the cluster
+w <- w %>%
+    mutate(igot_cluster = ifelse(igot_cluster == 2, "decre", igot_cluster)) %>%
+    mutate(igot_cluster = ifelse(igot_cluster == 1, "incre", igot_cluster)) %>%
+    mutate(igot_cluster = ifelse(igot_cluster == "decre", 1 , igot_cluster)) %>%
+    mutate(igot_cluster = ifelse(igot_cluster == "incre", 2, igot_cluster))
+
+ # key<-colnames(to_sps_join_df)
+ # learn_match<-filter(s,site_ID %in% c(to_sps_site, "P43006_215(NETM)/219(NEAP)"))%>%
+ #              full_join(to_sps_join_df, by = key)
+
+
+ # learn_common<-filter(s,site_ID %in% common_site)%>%
+ #               filter(glycan_ID %in% glycan_ID_key )
+
+```
+
+# select and add features
+- select columns 
+- add glycan structural information
+- add correlation ratio for sites (gpep-igot)
+```{r}
+w_ext <- w %>% select_cols() %>% add_glycan_structural_info() %>% add_cor_ratio_by_site()
+s_ext <- s %>% select_cols() %>% add_glycan_structural_info() %>% add_cor_ratio_by_site()
+
+ # lean_m_ext<-learn_match %>% select_cols() %>% add_glycan_structural_info() %>% add_cor_ratio_by_site()
+# learn_common_ext<-learn_common%>% select_cols() %>% add_glycan_structural_info() %>% add_cor_ratio_by_site()
+
+```
+
+# select rows (改定するまで下記の旧コード使用)
+- select correlated rows
+- select uncorrelated rows
+```{r}
+# w_cor <- w_ext %>% select_rows(cor = TRUE, cluster = "gpep_cluster")
+# s_cor <- s_ext %>% select_rows(cor = TRUE, cluster = "gpep_cluster")
+# w_ncor <- w_ext %>% select_rows(cor = FALSE, cluster = "ratio_cluster")
+# s_ncor <- s_ext %>% select_rows(cor = FALSE, cluster = "ratio_cluster")
+# 
+# output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/test_fig/"
+# saveRDS(w_cor, paste0(output_dir, "output/w_cor.rds"))
+# saveRDS(s_cor,  paste0(output_dir, "output/s_cor.rds"))
+# saveRDS(w_ncor,  paste0(output_dir, "output/w_ncor.rds"))
+# saveRDS(s_ncor,  paste0(output_dir, "output/s_ncor.rds"))
+# 
+# # protein_id category
+# acc_w_cor_gpep_ncor_ratio <- setdiff(w_cor$acc, w_ncor$acc)
+# acc_w_cor_gpep <- unique(w_cor$acc)
+# 
+# w_ext_cor <- w_ext %>% filter(acc %in% acc_w_cor_gpep_ncor_ratio)
+# w_ext_ncor <- w_ext %>% filter(acc %in% acc_w_cor_gpep)
+# s_ext_cor <- s_ext %>% filter(acc %in% acc_w_cor_gpep_ncor_ratio)
+# s_ext_ncor <- s_ext %>% filter(acc %in% acc_w_cor_gpep)
+```
+
+#上記の修正が完了したら消す
+```{r}
+
+#適応するデータの選別(cor or non-cor, 少なくともGlycan1つでCluster#がついているもの.accすべてかacc-siteで抽出)
+
+whole_cor_df<-data_cor_select(w_ext, "gpep_cluster", TRUE, 0.6, "acc_site_ID", FALSE, 0)
+sps_cor_df<-data_cor_select(s_ext, "gpep_cluster", TRUE, 0.6, "acc_site_ID", FALSE, 0)
+whole_noncor_df<-data_cor_select(w_ext, "ratio_cluster", FALSE, 0.6, "acc_site_ID", FALSE, 0)
+sps_noncor_df<-data_cor_select(s_ext, "ratio_cluster", FALSE, 0.6, "acc_site_ID", FALSE, 0)
+
+
+#venn analysisによるデータ選別キーの取得
+#accすべてでcorrationのもののみをextract
+whole_venn<-venn_analysis(whole_cor_df, whole_noncor_df, "acc")
+sps_venn<-venn_analysis(sps_cor_df, sps_noncor_df, "acc")
+
+whole_venn_site<-venn_analysis(whole_cor_df, whole_noncor_df, "acc_site_ID")
+sps_venn_site<-venn_analysis(sps_cor_df, sps_noncor_df, "acc_site_ID")
+
+whole_venn_site<-venn_analysis(whole_cor_df, whole_noncor_df, "acc_site_glycan_ID")
+sps_venn_site<-venn_analysis(sps_cor_df, sps_noncor_df, "acc_site_ID")
+
+whole_cor_acc<-extract_items(whole_venn@label_df, "correlation")
+whole_noncor_acc<-extract_items(whole_venn@label_df, "non_correlation")
+sps_cor_acc<-extract_items(sps_venn@label_df, "correlation")
+sps_noncor_acc<-extract_items(sps_venn@label_df, "non_correlation")
+
+#Heatmap用のcor & non-corデータの抽出
+
+whole_cor_heatmap_df<-w_ext %>%
+                      filter( acc %in% whole_cor_acc)
+whole_noncor_heatmap_df<-w_ext %>%
+                      filter( acc %in% whole_noncor_acc)
+sps_cor_heatmap_df<-s_ext %>%
+                      filter( acc %in% sps_cor_acc)
+sps_noncor_heatmap_df<-s_ext %>%
+                      filter( acc %in% sps_noncor_acc)
+
+
+sps_noncor_data_sel<- sps_noncor_heatmap_df%>%
+                                group_by(acc_site_ID) %>%
+                                mutate(n_clustered_glycans = sum(!is.na(.data[["ratio_cluster"]]))) %>%
+                                ungroup()%>%
+                                filter(n_clustered_glycans >= 20)%>%
+                                pull(.data[["acc"]])%>%
+                                unique()
+
+
+s_cor_23GN<-sps_cor_heatmap_df%>%
+            filter(.data[["GN"]] %in% tar_GN) #tar_GNはViolin plotより
+
+# sps_noncor_Glycan20_heatmap_df<-sps_noncor_heatmap_df%>%
+#                                filter(.data[["acc"]] %in% sps_noncor_data_sel)
+# 
+# whole_noncor_Glycan20_heatmap_df<-whole_noncor_heatmap_df%>%
+#                                filter(.data[["acc"]] %in% sps_noncor_data_sel)
+
+#noncorのうち、CFBでHexNAc変動が起こっている33GNを抽出
+#GN listはViolin plotより
+
+# dif_HN_GN<-decre_CFBHN_GN
+# dif_HN_GN_nCFB<-decre_nCFBHN_GN
+# 
+# sps_noncor_difHN_heatmap_df<-sps_noncor_heatmap_df%>%
+#                                filter(.data[["GN"]] %in% dif_HN_GN)
+# 
+# sps_noncor_difHNnCFB_heatmap_df<-sps_noncor_heatmap_df%>%
+#                                filter(.data[["GN"]] %in% dif_HN_GN_nCFB)
+
+
+# string_cluster1_GN<-c("Islr2", "Adgrl2","Lrrn3", "Slit1", "Ntn1", "Ephb2", "Epha5",
+#                       "Efnb1", "Reln", "Efna3", "Insr", "Nrp1", "Plxna3", "Ifnar1", 
+#                       "Atp6ap1", "Igf1r")
+# 
+# row_cluster_GN<-c("Ntrk2", "Sort1", "Psap","Syp", "Thy1", "Slc1a2", "Sv2a", "Sv2b")
+
+# s_cor_string_cl1<-sps_cor_heatmap_df%>%
+#                   filter(GN %in% string_cluster1_GN)
+# 
+# s_ncor_row_cl<-sps_noncor_heatmap_df%>%
+#                   filter(GN %in% row_cluster_GN)
+
+
+w_ext_cor<-whole_cor_heatmap_df
+s_ext_cor<-sps_cor_heatmap_df
+w_ext_ncor<-whole_noncor_heatmap_df
+s_ext_ncor<-sps_noncor_heatmap_df
+
+# s_ext_ncor_20<-sps_noncor_Glycan20_heatmap_df
+# w_ext_ncor_20<-whole_noncor_Glycan20_heatmap_df
+# s_ext_ncor_difHN<-sps_noncor_difHN_heatmap_df
+# s_ext_ncor_difHNnCFB<-sps_noncor_difHNnCFB_heatmap_df
+
+```
+
+# GO Term / Sort Keyは要検討（張）
+```{r}
+# IGOTの増減ごとにGO-termの振り分け
+set.seed(2025)
+w_go_cor <- GO_term(w_ext_cor, "CC")
+s_go_cor <- GO_term(s_ext_cor, "CC")
+w_go_ncor <- GO_term(w_ext_ncor, "CC")
+s_go_ncor <- GO_term(s_ext_ncor, "CC")
+
+s_go_ncor_M <- GO_term(s_ext_ncor, "MF")
+
+s_cor_23GN_GO<-s_cor_23GN %>%
+               mutate(Description    = NA,
+               function_group = "other",
+               p.adjust       = NA)
+
+# s_go_ncor_20 <- GO_term(s_ext_ncor_20, "MF")
+# w_go_ncor_20 <- GO_term(w_ext_ncor_20, "MF")
+
+# s_go_ncor_difHN<-GO_term(s_ext_ncor_difHN, "CC")
+# s_go_ncor_difHNnCFB<-s_ext_ncor_difHNnCFB%>%
+#                      mutate(Description    = NA,  
+#                      function_group = "other",       
+#                      p.adjust       = NA)
+
+
+# s_go_cor_stcl1 <- s_cor_string_cl1%>%
+#                   mutate(Description    = NA,  
+#                   function_group = "other",       
+#                   p.adjust       = NA)
+# s_ncor_row_cl_go<-GO_term(s_ncor_row_cl, "CC")
+
+# lean_m_extl_go<-GO_term(lean_m_ext, "MF")
+# learn_common_ext_go<-GO_term(learn_common_ext,"MF")
+
+#Glycan_sort_listの作成
+w_cor_heatmap_input <- sort_key(w_go_cor, "Category")
+s_cor_heatmap_input <- sort_key(s_go_cor, "Category")
+w_ncor_heatmap_input <- sort_key(w_go_ncor, "Category")
+s_ncor_heatmap_input <- sort_key(s_go_ncor, "Category")
+
+s_ncor_goM_heatmap_input<-sort_key(s_go_ncor_M, "HexNAc") 
+
+s_cor_23GN_heatmap_input<-sort_key(s_cor_23GN_GO, "Category")
+
+# s_ncor_20_heatmap_input <- sort_key(s_go_ncor_20, "HexNAc")
+# w_ncor_20_heatmap_input <- sort_key(w_go_ncor_20, "HexNAc")
+
+# s_ncor_difHN_heatmap_input<-sort_key(s_go_ncor_difHN, "Category")
+# s_ncor_difHNnCFB_heatmap_input<-sort_key(s_go_ncor_difHNnCFB, "Category")
+# s_cor_stcl_heatmap_input <- sort_key(s_go_cor_stcl1, "Category")
+# s_ncor_row_cl_heatmap_input<-sort_key(s_ncor_row_cl_go, "HexNAc")
+
+# lean_m_extl_heatmap_input<-sort_key(lean_m_extl_go, "HexNAc")
+
+# learn_common_heatmap_input<-sort_key(learn_common_ext_go, "HexNAc")
+
+output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/"
+
+# write.xlsx(s_cor_23GN_heatmap_input, paste0(output_dir, "sps_cor_synapseorganization.xlsx"))
+ # write.xlsx(w_cor_heatmap_input, paste0(output_dir, "CC_whole_cor.xlsx"))
+ # write.xlsx(s_cor_heatmap_input, paste0(output_dir,"CC_sps_cor.xlsx"))
+ # write.xlsx(w_ncor_heatmap_input, paste0(output_dir,"CC_whole_noncor.xlsx"))
+ # write.xlsx(s_ncor_heatmap_input, paste0(output_dir,"CC_sps_noncor.xlsx"))
+ # write.xlsx(s_ncor_20_heatmap_input, paste0(output_dir,"sps_noncor_Glycan_over20.xlsx"))
+ # write.xlsx(s_ncor_goM_heatmap_input, paste0(output_dir,"MF_sps_noncor.xlsx"))
+ # write.xlsx(s_ncor_row_cl_heatmap_input, paste0(output_dir,"CC_sps_ncor_H_HN_protein.xlsx"))
+ # write.xlsx(s_cor_stcl_heatmap_input, paste0(output_dir, "CC_sps_strings16_cor.xlsx"))
+ # write.xlsx(w_ncor_20_heatmap_input, paste0(output_dir,"whole_noncor_Glycan_over20.xlsx"))
+```
+
+# make heatmaply
+```{r}
+w_cor_heatmap_output <- heatmaply_fig(w_cor_heatmap_input, "gpep_cluster")
+s_cor_heatmap_output <- heatmaply_fig(s_cor_heatmap_input, "gpep_cluster")
+w_ncor_heatmap_output <- heatmaply_fig(w_ncor_heatmap_input, "ratio_cluster")
+s_ncor_heatmap_output <- heatmaply_fig(s_ncor_heatmap_input, "gpep_cluster")
+# s_ncor_20_heatmap_output <- heatmaply_fig(s_ncor_20_heatmap_input, "ratio_cluster")
+# w_ncor_20_heatmap_output <- heatmaply_fig(w_ncor_20_heatmap_input, "ratio_cluster")
+
+s_cor_23GN_heatmap_output<-heatmaply_fig(s_cor_23GN_heatmap_input,"gpep_cluster" )
+# s_ncor_difHN_heatmap_output <- heatmaply_fig(s_ncor_difHN_heatmap_input, "ratio_cluster")
+# s_ncor_difHNnCFB_heatmap_output <- heatmaply_fig(s_ncor_difHNnCFB_heatmap_input, "ratio_cluster")
+# s_cor_stcl1_heatmap_output <- heatmaply_fig(s_cor_stcl_heatmap_input, "gpep_cluster")
+# s_ncor_rowcl_heatmap_output <- heatmaply_fig(s_ncor_row_cl_heatmap_input, "ratio_cluster")
+
+# lean_m_extl_heatmap_output <- heatmaply_fig(lean_m_extl_heatmap_input, "ratio_cluster")
+# lean_common_heatmap_output <- heatmaply_fig(learn_common_heatmap_input, "ratio_cluster")
+
+htmlwidgets::saveWidget(s_cor_23GN_heatmap_output, paste0(output_dir, "sps_cor_synapseorganization.html"))
+# htmlwidgets::saveWidget(s_ncor_heatmap_output, paste0(output_dir, "CC_sps_ncor_gpep.html"))
+# htmlwidgets::saveWidget(s_cor_heatmap_output, paste0(output_dir, "CC_sps_cor.html"))
+# htmlwidgets::saveWidget(w_ncor_heatmap_output, paste0(output_dir, "CC_whole_ncor.html"))
+# htmlwidgets::saveWidget(w_cor_heatmap_output, paste0(output_dir, "CC_whole_cor.html"))
+# 
+# htmlwidgets::saveWidget(s_ncor_20_heatmap_output, paste0(output_dir, "CC_sps_ncor_20.html"))
+# htmlwidgets::saveWidget(s_cor_stcl1_heatmap_output, paste0(output_dir, "sps_cor_strings_cluster1.html"))
+# htmlwidgets::saveWidget(s_ncor_rowcl_heatmap_output, paste0(output_dir, "CC_sps_ncor_H_HN_num.html"))
+# htmlwidgets::saveWidget(w_ncor_20_heatmap_output, paste0(output_dir, "MF_whole_ncor_20.html"))
+# htmlwidgets::saveWidget(lean_m_extl_heatmap_output, paste0(output_dir, "MF_match_wt_learning_gpep.html"))
+# htmlwidgets::saveWidget(lean_common_heatmap_output, paste0(output_dir, "MF_common_wt_learning_gpep.html"))
+ # htmlwidgets::saveWidget(s_ncor_difHN_heatmap_output , paste0(output_dir, "CC_sps_ncor_difHN_gpep.html"))
+ # htmlwidgets::saveWidget(s_ncor_difHNnCFB_heatmap_output , paste0(output_dir, "CC_sps_ncor_difHNnCFB_gpep.html"))
+ # 
+```

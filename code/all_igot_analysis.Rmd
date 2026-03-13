@@ -1,0 +1,450 @@
+---
+title: "all_igot_analysis"
+author: "Shiori"
+date: "2026-01-20"
+output: html_document
+---
+```{r}
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(openxlsx)
+library(ggplot2)
+library(clusterProfiler)
+library(org.Mm.eg.db) 
+library(reshape2)
+library(cluster)
+library(factoextra)
+library(heatmaply)
+library(RColorBrewer)
+library(venndir)
+library(textshaping)
+
+library(maSigPro)
+
+source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_all_igot_analysis.R")
+```
+
+#site当たりのgpepのカウント
+#IGOTではaccあたりのSiteのカウント
+```{r, fig.width=8, fig.height=5}
+
+output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
+output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/"
+#data input
+sps_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "sps_igot")
+sps_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
+whole_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "whole_igot")
+whole_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.2_restrict.xlsx", "pattern_result")
+
+time_point<-c("p0_1","p0_2","p0_3", "p8_1", "p8_2", "p8_3",
+              "2w_1","2w_2","2w_3", "4w_1", "4w_2", "4w_3",
+              "3M_1","3M_2","3M_3")
+
+#data select
+sps_col<-grep("ratio", colnames(sps_gpep), value= T)
+whole_col<-grep("ratio", colnames(whole_gpep), value= T)
+
+sps_igot_col<-grep("Ec", colnames(sps_igot), value= T)
+whole_igot_col<-grep("Ec", colnames(whole_igot), value= T)
+
+
+sps_gpep_sel<-select(sps_gpep, site_ID, acc_site_glycan_ID, all_of(sps_col))%>%
+                filter(!if_all(all_of(sps_col), is.na))
+whole_gpep_sel<-select(whole_gpep, site_ID, acc_site_glycan_ID, all_of(whole_col))%>%
+                filter(!if_all(all_of(whole_col), is.na))
+
+sps_igot_sel<-select(sps_igot, Master.Protein.Accessions, acc_site_ID, all_of(sps_igot_col))%>%
+                filter(!if_all(all_of(sps_igot_col), is.na),
+                       !grepl("/", acc_site_ID))%>%
+                rename("acc" = "Master.Protein.Accessions", "site_ID"="acc_site_ID")
+whole_igot_sel<-select(whole_igot, Master.Protein.Accessions, acc_site_ID, all_of(whole_igot_col))%>%
+                filter(!if_all(all_of(whole_igot_col), is.na),
+                       !grepl("/", acc_site_ID))%>%
+                rename("acc" = "Master.Protein.Accessions", "site_ID"="acc_site_ID")
+
+sps_glycan_count<-count_of_glycan(sps_gpep_sel)
+
+
+whole_glycan_count<-count_of_glycan(whole_gpep_sel)
+
+sps_igot_site_count<-count_of_site(sps_igot_sel)
+whole_igot_site_count<-count_of_site(whole_igot_sel)
+
+
+#Violine plot dataの成型
+
+sps_vio_data<-select(sps_glycan_count, site_ID, nGlycan)%>%
+              mutate(fraction = "synaptosome")%>%
+              distinct()
+whole_vio_data<-select(whole_glycan_count, site_ID, nGlycan)%>%
+              mutate(fraction = "whole")%>%
+              distinct()
+
+sps_igot_vio_data<-select(sps_igot_site_count,acc, site_ID, nsite)%>%
+                   mutate(fraction = "synaptosome")%>%
+                   distinct()
+whole_igot_vio_data<-select(whole_igot_site_count, acc, site_ID, nsite)%>%
+                   mutate(fraction = "whole")%>%
+                   distinct()
+
+plot_data<-rbind(whole_vio_data, sps_vio_data)%>%
+           mutate(fraction = factor(fraction, level = c("whole", "synaptosome")))
+
+igot_plot_data<-rbind(whole_igot_vio_data, sps_igot_vio_data)%>%
+                mutate(fraction = factor(fraction, level = c("whole", "synaptosome")))
+
+values_color<-c("whole" = "#3cb371", "synaptosome" = "#ff6347")
+
+glycan_count_plot<-insite_glycan_violine_plot(plot_data,"fraction", values_color, "nGlycan")
+site_count_plot<-insite_glycan_violine_plot(igot_plot_data,"fraction", values_color, "nsite")
+
+saveRDS(glycan_count_plot, paste0(output_dir_fig, "glycan_count_in_site.rds"))
+saveRDS(site_count_plot, paste0(output_dir_fig, "site_count_in_protein.rds"))
+
+glycan_count_plot
+site_count_plot
+
+
+```
+
+
+#igot matched gpep site
+```{r}
+# data_input
+s <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
+w <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.2_restrict.xlsx", "pattern_result")
+
+output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
+
+fraction_color<-c("#32cd32","#fa8072")
+match_gpep_vswhole<-list("whole" = unique(w$acc_site_glycan_ID),"synaptosome" = unique(s$acc_site_glycan_ID)) 
+gpep_match_whole<-venn_analysis(match_gpep_vswhole, fraction_color)
+
+saveRDS(gpep_match_whole, paste0(output_dir_fig, "gpep_w_and_S_venn.rds"))
+
+ s_ext_igot <- s %>% 
+               filter(!is.na(gpep_igot_correlation))%>%
+               select_col() %>% distinct()
+
+s_igot_pattern_group<-s_ext_igot%>%
+                      group_by(First_acc)%>%
+                      mutate(occ = n_distinct(igot_cluster, na.rm = TRUE))%>%
+                      ungroup()
+
+w_ext_igot <- w %>% 
+               filter(!is.na(gpep_igot_correlation))%>%
+               select_col() %>% distinct()
+
+w_igot_pattern_group<-w_ext_igot%>%
+                      group_by(First_acc)%>%
+                      mutate(occ = n_distinct(igot_cluster, na.rm = TRUE))%>%
+                      ungroup()
+
+
+
+ output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/"
+# write.xlsx(s_igot_pattern_group, paste0(output_dir, "sps_igot_cluster_pattern.xlsx"))
+# write.xlsx(w_igot_pattern_group, paste0(output_dir, "whole_igot_cluster_pattern.xlsx"))
+
+ 
+```
+
+#pretreatのデータの前処理とvenn analysis
+```{r}
+#data
+# sps_igot(imp済み) 
+# whole_igot(imp済み)
+#total igot
+# data_input
+s <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
+w <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.2_restrict.xlsx", "pattern_result")
+sps_igot<-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_all_igot_imp_v3_restrict.xlsx")
+whole_igot<-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_all_igot_imp_v3_restrict.xlsx")
+
+
+
+
+sps_imp_df<-sps_igot%>%
+              filter(!if_all(ends_with("log2m"), is.na))%>%
+              select("Master.Protein.Accessions" , "GN", "acc_site_ID", ends_with("imp"))%>%
+  　　　　　　col_name_change("sps")%>%
+              rename("acc" = "Master.Protein.Accessions")
+
+whole_imp_df<-whole_igot%>%
+              filter(!if_all(ends_with("log2m"), is.na))%>%
+              select( "Master.Protein.Accessions" , "GN", "acc_site_ID", ends_with("imp"))%>%
+              col_name_change("whole")%>%
+              rename("acc" = "Master.Protein.Accessions")
+
+
+#wholeとのsite match数
+fraction_color<-c("#32cd32","#fa8072")
+match_site_list_vswhole<-list("whole" = unique(whole_imp_df$acc_site_ID),"synaptosome" = unique(sps_imp_df$acc_site_ID)) 
+site_match_whole<-venn_analysis(match_site_list_vswhole, fraction_color)
+
+saveRDS(site_match_whole, paste0(output_dir_fig, "igot_w_and_S_venn.rds"))
+
+#gpepとマッチしたサイト数
+match_site_list<-list("Glycosylation site of IGOT" = unique(sps_imp_df$acc_site_ID),"Glycosylation site of Glycopeptide" = unique(s$site_ID)) 
+match_acc_list<-list("Coreprotein" = unique(sps_imp_df$acc),"Glycoprotein" = unique(s$First_acc)) 
+
+analysis_color<-c("#00bfff","#ffa500")
+site_venn<-venn_analysis(match_site_list, analysis_color)
+acc_venn<-venn_analysis(match_acc_list, analysis_color)
+
+plot(site_venn)
+plot(acc_venn)
+
+saveRDS(site_venn, paste0(output_dir_fig, "sps_gpep-igot_match_site.rds"))
+saveRDS(acc_venn, paste0(output_dir_fig, "sps_gpep-igot_match_acc.rds"))
+
+
+```
+
+
+#pretreatのデータの前処理とIGOTデータのpattern analysis
+```{r}
+#data
+# sps_igot(imp済み) 
+# whole_igot(imp済み)
+# Nigotで単一のものがあるものはそちらを選択。Nsitehaveが0のもののみ抽出
+
+sps_igot <-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_all_igot_imp_v3_restrict.xlsx")
+whole_igot <-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_all_igot_imp_v3_restrict.xlsx")
+
+
+sps_log2m_df<-select(sps_igot, "Master.Protein.Accessions" , "GN", "acc_site_ID", ends_with("log2m"))%>%
+              col_name_change("sps")%>%
+              rename("acc" = "Master.Protein.Accessions")
+
+sps_imp_df<-sps_igot%>%
+              select_igot_position()%>%
+              filter( Nsite_have_consensus == 0)%>%
+              select( "Master.Protein.Accessions" , "GN", "acc_site_ID", ends_with("imp"))%>%
+  　　　　　　col_name_change("sps")%>%
+              rename("acc" = "Master.Protein.Accessions")
+
+ write.xlsx(sps_imp_df, paste0(output_dir, "igot_analysis_sps_imp.xlsx"))
+
+whole_imp_df<-whole_igot%>%
+              select_igot_position()%>%
+              filter( Nsite_have_consensus == 0)%>%
+              select( "Master.Protein.Accessions" , "GN", "acc_site_ID", ends_with("imp"))%>%
+              col_name_change("whole")%>%
+              rename("acc" = "Master.Protein.Accessions")
+
+sps_log2_mat<-heat_mat(sps_log2m_df)
+sps_imp_mat<-heat_mat(sps_imp_df)
+sps_zscore_mat<-data.frame(acc_site_ID = rownames(sps_imp_mat),sps_imp_mat)%>%
+                transform_input_zscore()
+
+whole_imp_mat<-heat_mat(whole_imp_df)
+whole_zscore_mat<-data.frame(acc_site_ID = rownames(whole_imp_mat),whole_imp_mat)%>%
+                 transform_input_zscore()
+
+sps_log2_gn<-add_pro_info(sps_log2_mat, sps_log2m_df)
+sps_imp_gn<-add_pro_info(sps_imp_mat, sps_imp_df)
+whole_imp_gn<-add_pro_info(whole_imp_mat, whole_imp_df)
+
+sps_zscore<-data.frame(acc_site_ID = rownames(sps_imp_gn),sps_imp_gn)%>%
+                transform_input_zscore()
+
+whole_zscore<-data.frame(acc_site_ID = rownames(whole_imp_gn),whole_imp_gn)%>%
+                transform_input_zscore()
+
+
+sps_igot_pattern<-extract_sig_vars(sps_zscore, "sps_igot")
+sps_igot_cutoff<-silhouette_analysis(sps_igot_pattern)%>%as.numeric()
+sps_igot_res    <- see.genes(sps_igot_pattern$sig.genes, k=sps_igot_cutoff)
+fig_sps_igot  <- plot_pattern_cluster(sps_igot_pattern, 2, "sps", "igot", "cluster", "decre")
+whole_igot_pattern<-extract_sig_vars(whole_zscore, "sps_igot")
+
+whole_igot_cutoff<-silhouette_analysis(whole_igot_pattern)%>%as.numeric()
+whole_igot_res    <- see.genes(whole_igot_pattern$sig.genes, k=whole_igot_cutoff)
+fig_whole_igot  <- plot_pattern_cluster(whole_igot_pattern, 2, "whole", "igot", "cluster", "decre")
+
+fig_sps_igot
+fig_whole_igot
+
+saveRDS(fig_sps_igot, paste0(output_dir_fig, "sps_all_igot_pattern.rds"))
+saveRDS(fig_whole_igot, paste0(output_dir_fig, "whole_all_igot_pattern.rds"))
+
+sps_igot_cluster<-obtain_cluster_with_ID(sps_igot_res, "igot_cluster")%>%
+                  rename("acc_site_ID"="site_ID")
+whole_igot_cluster<-obtain_cluster_with_ID(whole_igot_res, "igot_cluster")%>%
+                  rename("acc_site_ID"="site_ID")
+
+sps_zscore_cl<-sps_zscore%>%
+               add_pro_info(sps_imp_df)%>%
+               mutate(acc_site_ID = rownames(.))%>%
+               left_join(sps_igot_cluster, by = "acc_site_ID")
+whole_zscore_cl<-whole_zscore_mat%>%
+               add_pro_info(whole_imp_df)%>%
+                mutate(acc_site_ID = rownames(.))%>%
+               left_join(whole_igot_cluster, by = "acc_site_ID")
+
+sps_zscore_cl_count<-sps_zscore_cl%>%
+                     group_by(acc)%>%
+                     mutate(dif_cluster = n_distinct(igot_cluster, na.rm = TRUE),
+                            site_num = n())%>%
+                     group_by(acc, igot_cluster)%>%
+                     mutate(cluster_num_in_site = sum(!is.na(igot_cluster)),
+                            cluster_occupancy = sum(!is.na(igot_cluster))/site_num)%>%
+                     ungroup()
+
+whole_zscore_cl_count<-whole_zscore_cl%>%
+                     group_by(acc)%>%
+                     mutate(dif_cluster = n_distinct(igot_cluster, na.rm = TRUE),
+                            site_num = n())%>%
+                     group_by(acc, igot_cluster)%>%
+                     mutate(cluster_num_in_site = sum(!is.na(igot_cluster)),
+                            cluster_occupancy = sum(!is.na(igot_cluster))/site_num)%>%
+                     ungroup()
+
+output_zscore_sheet<-sps_zscore_cl_count%>%
+                      select("acc_site_ID", "acc", "GN", "igot_cluster",
+                            "dif_cluster", "site_num", "cluster_num_in_site",
+                            "cluster_occupancy", starts_with("p"))
+
+w_output_zscore_sheet<-whole_zscore_cl_count%>%
+                      select("acc_site_ID", "acc", "GN", "igot_cluster",
+                            "dif_cluster", "site_num", "cluster_num_in_site",
+                            "cluster_occupancy", starts_with("p"))
+
+
+```
+
+#IGOTのpattern分布とGO analysis
+```{r}
+set.seed(2025)
+
+s_incre_site<-output_zscore_sheet%>%filter(igot_cluster == 2)
+s_decre_site<-output_zscore_sheet%>%filter(igot_cluster == 1)
+
+acc_list<-list("Increased" = unique(s_incre_site$acc), "Decreased" =unique(s_decre_site$acc))
+pattern_color<-c("#ff6347", "#1e90ff")
+igot_pattern_venn<-venn_analysis(acc_list, pattern_color)
+
+incre_acc<-extract_items(igot_pattern_venn@label_df, "Increased")
+decre_acc<-extract_items(igot_pattern_venn@label_df, "Decreased")
+
+plot(igot_pattern_venn)
+
+saveRDS(igot_pattern_venn, paste0(output_dir_fig, "igot_occupancy_venn.rds"))
+
+s_incre_GN<-output_zscore_sheet%>%
+            filter(acc %in% incre_acc)
+s_decre_GN<-output_zscore_sheet%>%
+            filter(acc %in% decre_acc)
+
+s_incre_GO<-GO_analysis(s_incre_GN, "MF")
+s_decre_GO<-GO_analysis(s_decre_GN, "MF")
+
+s_incre_GO_selfbg<-GO_selfbg_analysis(s_incre_GN, output_zscore_sheet, "BP")
+s_decre_GO_selfbg<-GO_selfbg_analysis(s_decre_GN, output_zscore_sheet, "BP")
+
+GO_plot(s_incre_GO_selfbg, "BP")
+GO_plot(s_decre_GO_selfbg, "BP")
+
+s_incre_GO_CC<-GO_analysis(s_incre_GN, "CC")
+s_decre_GO_CC<-GO_analysis(s_decre_GN, "CC")
+s_incre_GO_BP<-GO_analysis(s_incre_GN, "BP")
+s_decre_GO_BP<-GO_analysis(s_decre_GN, "BP")
+
+GO_s_incre_MF<-GO_plot(s_incre_GO, "MF")
+GO_s_decre_MF<-GO_plot(s_decre_GO, "MF") 
+GO_s_incre_CC<-GO_plot(s_incre_GO_CC, "CC")
+GO_s_decre_CC<-GO_plot(s_decre_GO_CC, "CC") 
+GO_s_incre_BP<-GO_plot(s_incre_GO_BP, "BP")
+GO_s_decre_BP<-GO_plot(s_decre_GO_BP, "BP") 
+
+saveRDS(GO_s_incre_MF, paste0(output_dir_fig, "GO_s_incre_MF.rds"))
+saveRDS(GO_s_decre_MF, paste0(output_dir_fig, "GO_s_decre_MF.rds"))
+saveRDS(GO_s_incre_CC, paste0(output_dir_fig, "GO_s_incre_CC.rds"))
+saveRDS(GO_s_decre_CC, paste0(output_dir_fig, "GO_s_decre_CC.rds"))
+saveRDS(GO_s_incre_BP, paste0(output_dir_fig, "GO_s_incre_BP.rds"))
+saveRDS(GO_s_decre_BP, paste0(output_dir_fig, "GO_s_decre_BP.rds"))
+
+tar_ID<-"GO:0050839" #cell adhesion molecule binding
+GO_res<-s_incre_GO
+
+decre_adh<-s_decre_GO %>% GO_res_transGN(tar_ID)
+incre_adh<-s_incre_GO %>% GO_res_transGN(tar_ID)
+
+str_df<-bind_rows(tibble(IGOT = decre_adh,  direction = "decreased"),
+                  tibble(IGOT = incre_adh, direction = "increased"))
+
+decre_adh_GO<-output_zscore_sheet%>%
+              filter(GN %in% decre_adh)%>%
+              GO_analysis("CC")
+
+incre_adh_GO<-output_zscore_sheet%>%
+              filter(GN %in% incre_adh)%>%
+              GO_analysis("CC")
+
+adh_GO_decre<-GO_plot(decre_adh_GO, "CC")
+adh_GO_incre<-GO_plot(incre_adh_GO, "CC")
+
+saveRDS(adh_GO_decre, paste0(output_dir_fig, "igot_GO_adh_decre_CC.rds"))
+saveRDS(adh_GO_incre, paste0(output_dir_fig, "igot_GO_adh_incre_CC.rds"))
+
+# write.xlsx(str_df, paste0(output_dir, "sps_igot_GO_adhesion_molecules_for_strings.xlsx"))
+
+#抽出した2つのcell adhesion molecule bindingを、再度BPでGO
+
+overlap_acc<-extract_items(igot_pattern_venn@label_df, "overlap")
+occu_change_df<-output_zscore_sheet %>% filter(acc %in% overlap_acc)
+
+overlap_24_GO<-GO_analysis(occu_change_df, "BP")
+
+GO_plot(overlap_24_GO, "BP")
+
+target_high_GO<-c("regulation of neurogenesis")
+learn_cong_GN<-extract_GN(overlap_24_GO, target_high_GO)
+
+overlap_color<-colorRampPalette(brewer.pal(8, "Set2"))(24)
+
+overlap_24_plot<-occu_change_df%>%
+                 trans_longdata()%>%
+                 igot_ave_plot(overlap_color)
+
+high_GO_color<-colorRampPalette(brewer.pal(12, "Paired"))(12)
+high_GO_plot<-output_zscore_sheet%>%
+                 filter(GN %in% learn_cong_GN)%>%
+                 trans_longdata()%>%
+                 igot_ave_plot(high_GO_color)
+
+#occupancy changeを起こしている可能性があるタンパク質の線形plot (ex, Gria4)
+occu_acc<-extract_items(igot_pattern_venn@label_df, "overlap")
+
+occu_acc_df<-output_zscore_sheet %>%
+             filter(acc %in% occu_acc, !is.na(igot_cluster))%>%
+             trans_longdata_for_lineplot()
+
+GN_color<-c("blue", "red") #col
+
+GN_color_pallet <- function(n) RColorBrewer::brewer.pal(n, "Dark2")
+
+Lingo1<-occu_acc_df%>% 
+        filter(GN_site %in% c("Lingo1_486(NGTY)/495(NAGG)/499(NDSM)", "Lingo1_486(NGTY)/499(NDSM)"))%>%
+        igot_GN_plot(GN_color_pallet, "Lingo1")
+Itgb1<-occu_acc_df%>% 
+        filter(GN_site %in% c("Itgb1_44(NCGW)/50(NTTF)", "Itgb1_50(NTTF)"))%>%
+        igot_GN_plot(GN_color_pallet, "Itgb1")
+Ptprz1<-igot_GN_plot(occu_acc_df, GN_color_pallet, "Ptprz1")
+Lamp2<-igot_GN_plot(occu_acc_df, GN_color, "Lamp2")
+
+
+saveRDS(Lingo1, paste0(output_dir_fig,"sps_igot_Lingo1_pattern.rds"))
+saveRDS(Itgb1, paste0(output_dir_fig,"sps_igot_Itgb1_pattern.rds"))
+
+
+Lingo1
+Itgb1
+Ptprz1
+Lamp2
+
+
+```

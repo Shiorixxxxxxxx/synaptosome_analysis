@@ -1,0 +1,128 @@
+---
+title: "IGOT/gpep pretreat"
+author: "Shiori"
+date: "2025-04-23"
+output: html_document
+---
+
+```{r}
+library(stringr)
+library(readxl)
+library(openxlsx)
+library(dplyr)
+library(pcaMethods)
+source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils-pretreat_v2.R")
+```
+
+# load raw data
+```{r}
+dir_name<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/"
+
+sps_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "sps_igot")
+sps_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/sps_gpep.xlsx")
+whole_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "whole_igot")
+whole_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/whole_gpep.xlsx")
+
+```
+
+# change the "." in column names to " "
+# raw data => rename columns
+```{r}
+colnames(whole_igot) <- colnames(whole_igot) %>% str_replace_all("\\.", " ")
+colnames(sps_igot)   <- colnames(sps_igot) %>% str_replace_all("\\.", " ")
+colnames(whole_gpep) <- colnames(whole_gpep) %>% str_replace_all("\\.", " ")
+colnames(sps_gpep)   <- colnames(sps_gpep) %>% str_replace_all("\\.", " ")
+
+sps_igot <- sps_igot %>% rename_column()
+sps_gpep <- sps_gpep %>% rename_column()
+whole_igot <- whole_igot %>% rename_column()
+whole_gpep <- whole_gpep %>% rename_column()
+```
+
+# raw data => log2-median normalization
+```{r}
+#data sumをlog2 median前に行うよう修正(Utilsも併せて修正)
+sps_gpep<-sps_gpep%>%
+              select_column() %>%
+              site_sum()
+
+whole_gpep<-whole_gpep%>%
+                select_column() %>%
+                site_sum()
+              
+sps_igot_log2m <- sps_igot %>% log2_median_normal()
+sps_gpep_log2m <- sps_gpep %>% log2_median_normal()
+whole_igot_log2m <- whole_igot %>% log2_median_normal()
+whole_gpep_log2m <- whole_gpep %>% log2_median_normal()
+
+sps_igot <- cbind(sps_igot, sps_igot_log2m)
+sps_gpep <- cbind(sps_gpep, sps_gpep_log2m)
+whole_igot <- cbind(whole_igot, whole_igot_log2m)
+whole_gpep <- cbind(whole_gpep, whole_gpep_log2m)
+
+
+```
+
+# log2m gpep => select necessary columns from the raw file
+# log2m gpep => 3 shot integration
+# log2m gpep => select rows
+```{r}
+
+#data countする数値が>0だったため(マイナスもカウントしない)、NA以外の数値カウントのみに修正
+whole_gpep <- whole_gpep %>% 
+  get_mean_column() %>%
+  select_rows()
+
+  #select_rows()
+
+sps_gpep <- sps_gpep %>% 
+  get_mean_column() %>% 
+  select_rows()
+  
+#write.xlsx(sps_gpep, "G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/check.xlsx")
+
+```
+
+# gpep => imputation 
+# igot => imputation 
+```{r}
+sps_gpep_imp   <- sps_gpep[,114:128] %>% 
+                  rule_based_imputation() %>% 
+                  PCA_imputation()
+sps_igot_imp   <- sps_igot[,25:39] %>% 
+                  rule_based_imputation() %>% 
+                  PCA_imputation()
+whole_gpep_imp <- whole_gpep[,114:128] %>% 
+                  rule_based_imputation() %>% 
+                  PCA_imputation()
+whole_igot_imp <- whole_igot[,25:39] %>% 
+                  rule_based_imputation() %>% 
+                  PCA_imputation()
+sps_igot   <- cbind(sps_igot, sps_igot_imp)
+sps_gpep   <- cbind(sps_gpep, sps_gpep_imp)
+whole_igot <- cbind(whole_igot, whole_igot_imp)
+whole_gpep <- cbind(whole_gpep, whole_gpep_imp)
+
+write.xlsx(sps_igot, paste0(dir_name, "sps_all_igot_imp_v3_restrict.xlsx"))
+write.xlsx(whole_igot, paste0(dir_name, "whole_all_igot_imp_v3_restrict.xlsx"))
+
+```
+
+
+```{r}
+#############################################
+#calculation of gpep/igot and output of file#
+#############################################
+
+whole_ratio_df<-merged_file(whole_gpep, whole_igot)
+sps_ratio_df<-merged_file(sps_gpep, sps_igot)
+
+whole_output_list<-output_merge_file(whole_gpep, whole_igot, whole_ratio_df)
+sps_output_list<-output_merge_file(sps_gpep, sps_igot, sps_ratio_df)
+
+whole_output_name <-paste0(dir_name, "whole", "_gpep-igot_ratio_4.2_restrict.xlsx")
+write.xlsx(whole_output_list, whole_output_name)
+sps_output_name<-paste0(dir_name, "sps", "_gpep-igot_ratio_4.2_restrict.xlsx")
+write.xlsx(sps_output_list, sps_output_name)
+
+```

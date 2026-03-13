@@ -1,0 +1,90 @@
+---
+title: "sps_pattern_analysis.3.0"
+author: "Shiori"
+date: "2025-09-22"
+output: html_document
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(openxlsx)
+library(maSigPro)
+library(ggplot2)
+
+source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_pattern_analysis.4.0.R")
+```
+
+# data input
+```{r}
+sps_df   <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
+whole_df <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
+
+whole_gpep  <- select_colomns_with_distinct_rows(whole_df, "gpep") 
+whole_igot  <- select_colomns_with_distinct_rows(whole_df, "igot")
+whole_ratio <- select_colomns_with_distinct_rows(whole_df, "ratio")
+sps_gpep    <- select_colomns_with_distinct_rows(sps_df, "gpep")
+sps_igot    <- select_colomns_with_distinct_rows(sps_df, "igot")
+sps_ratio   <- select_colomns_with_distinct_rows(sps_df, "ratio")
+```
+
+
+```{r}
+## 修正した点
+# pattern_input_data ==> transform_input_zscore (名前から目的わかるように書く)
+# pattern_analysis ==> extract_sig_vars
+
+# transform abundance into z-scores
+whole_gpep_zscore  <- transform_input_zscore(whole_gpep, "whole", "gpep")
+whole_igot_zscore  <- transform_input_zscore(whole_igot, "whole", "igot")
+whole_ratio_zscore <- transform_input_zscore(whole_ratio, "whole", "ratio")
+sps_gpep_zscore    <- transform_input_zscore(sps_gpep, "sps", "gpep")
+sps_igot_zscore    <- transform_input_zscore(sps_igot, "sps", "igot")
+sps_ratio_zscore   <- transform_input_zscore(sps_ratio, "sps", "ratio")
+
+# write.xlsx(sps_gpep, "G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/check.xlsx")
+
+# extract significant genes in fitting the time series
+whole_gpep_res  <- extract_sig_vars(whole_gpep_zscore, "whole_gpep")
+whole_igot_res  <- extract_sig_vars(whole_igot_zscore, "whole_igot")
+whole_ratio_res <- extract_sig_vars(whole_ratio_zscore, "whole_ratio")
+sps_gpep_res    <- extract_sig_vars(sps_gpep_zscore, "sps_gpep")
+sps_igot_res    <- extract_sig_vars(sps_igot_zscore, "sps_igot")
+sps_ratio_res   <- extract_sig_vars(sps_ratio_zscore, "sps_ratio")
+
+# obtain gene clusters by patterns
+whole_gpep_cluster  <- see.genes(whole_gpep_res$sig.genes, k=2)
+whole_igot_cluster  <- see.genes(whole_igot_res$sig.genes, k=2)
+whole_ratio_cluster <- see.genes(whole_ratio_res$sig.genes, k=3)
+sps_gpep_cluster    <- see.genes(sps_gpep_res$sig.genes, k=2)
+sps_igot_cluster    <- see.genes(sps_igot_res$sig.genes, k=2)
+sps_ratio_cluster   <- see.genes(sps_ratio_res$sig.genes, k=3)
+
+# saveRDS(whole_gpep_res, paste0(temp_dir ".rda"))
+# 
+# readRDS()
+# obtain cluster figures
+fig_whole_gpep  <- plot_pattern_cluster(whole_gpep_res, 2, "whole", "gpep", "cluster", "decre")
+fig_whole_igot  <- plot_pattern_cluster(whole_igot_res, 2, "whole", "igot", "cluster", "incre")
+fig_whole_ratio <- plot_pattern_cluster(whole_ratio_res, 3, "whole", "ratio", "cluster", "decre")
+fig_sps_gpep    <- plot_pattern_cluster(sps_gpep_res, 2, "sps", "gpep", "cluster", "decre")
+fig_sps_igot    <- plot_pattern_cluster(sps_igot_res, 2, "sps", "igot", "cluster", "decre")
+fig_sps_ratio   <- plot_pattern_cluster(sps_ratio_res, 3, "sps", "ratio", "cluster", "decre")
+
+
+output_dir_fig<-("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/")
+saveRDS(fig_whole_gpep, paste0(output_dir_fig, "pattern_whole_gpep.rds"))
+saveRDS(fig_whole_igot, paste0(output_dir_fig, "pattern_fig_whole_igot.rds"))
+saveRDS(fig_whole_ratio, paste0(output_dir_fig, "pattern_fig_whole_ratio.rds"))
+saveRDS(fig_sps_gpep, paste0(output_dir_fig, "pattern_sps_gpep.rds"))
+saveRDS(fig_sps_igot, paste0(output_dir_fig, "pattern_fig_sps_igot.rds"))
+saveRDS(fig_sps_ratio, paste0(output_dir_fig, "pattern_fig_sps_ratio.rds"))
+
+fig_whole_gpep | fig_whole_igot | fig_whole_ratio
+fig_sps_gpep | fig_sps_igot | fig_sps_ratio
+
+
+```
+

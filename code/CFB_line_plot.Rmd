@@ -1,0 +1,130 @@
+---
+title: "CFB_line_plot"
+author: "Shiori"
+date: "2026-01-21"
+output: html_document
+---
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(openxlsx)
+library(ggplot2)
+library(venndir)
+library(ggbeeswarm)
+library(ggpubr)
+library(rstatix)
+library(stats)
+library(bio3d)
+library(httr)
+library(jsonlite)
+
+source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_CFB_line_plot.R")
+
+```
+
+#CFB glycan site match
+#increased-glycan: H3HN4F1-CFB, H4HN4F2-CFB
+#decreased-glycan: H3HN5F1-CFB, H4HN5F2-CFB
+```{r, fig.width=10, fig.height=5}
+
+sps_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/CC_sps_noncor_restrict.xlsx", 1)
+igot_zscore<- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "igot_zscore")
+gpep_ratio_zscore<- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "ratio_zscore")
+output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/"
+output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
+
+decre_glycan<-c("Hex(3)HexNAc(5)Fuc(1)", "Hex(4)HexNAc(5)Fuc(2)")
+incre_glycan<-c("Hex(3)HexNAc(4)Fuc(1)", "Hex(4)HexNAc(4)Fuc(2)")
+
+#Cluster 2&3 = increased, 1 = decreased
+sps_CFB_incre_df<-filter(sps_gpep, ratio_cluster %in% c(2,3), glycan_comp %in% incre_glycan, Category == "CF_Bisect")
+sps_CFB_decre_df<-filter(sps_gpep, ratio_cluster %in% 1, glycan_comp %in% decre_glycan, Category == "CF_Bisect")
+
+match_site_list<-list( "Increased_341_442_site" = unique(sps_CFB_incre_df$acc_site_ID), "Decreased_351_452_site" = unique(sps_CFB_decre_df$acc_site_ID))
+match_acc_list<-list( "Increased_341_442_acc" = unique(sps_CFB_incre_df$acc), "Decreased_351_452_acc" = unique(sps_CFB_decre_df$acc))
+
+CFB_site_venn<-venn_analysis(match_site_list)
+CFB_venn<-venn_analysis(match_acc_list)
+
+saveRDS(CFB_site_venn, paste0(output_dir_fig, "CFB_match_site_venn.rds"))
+saveRDS(CFB_venn, paste0(output_dir_fig, "CFB_match_acc_venn.rds"))
+
+CFB_match_site<-extract_items(CFB_site_venn@label_df, "Increased_341_442_site&Decreased_351_452_site")%>%unname()
+
+CFB_incre_acc<-extract_items(CFB_venn@label_df, "Increased_341_442_acc")
+CFB_decre_acc<-extract_items(CFB_venn@label_df, "Decreased_351_452_acc")
+CFB_match_acc<-extract_items(CFB_venn@label_df, "Increased_341_442_acc&Decreased_351_452_acc")
+
+sps_CFB_decre_GN<-filter(sps_gpep, acc %in% CFB_decre_acc)%>%
+                   pull(GN)%>%unique()
+sps_CFB_incre_GN<-filter(sps_gpep, acc %in% CFB_incre_acc)%>%
+                   pull(GN)%>%unique()
+sps_CFB_change_GN<-filter(sps_gpep, acc %in% CFB_match_acc)%>%
+                   pull(GN)%>%unique()
+
+sps_CFB_change_gn_site<-filter(sps_gpep, acc_site_ID %in% CFB_match_site)%>%
+                   pull(GN)%>%unique()
+
+GN_list<-list("match" = data.frame(sps_CFB_change_gn_site),
+              "incre_only" = data.frame(sps_CFB_incre_GN),
+              "decre_only" = data.frame(sps_CFB_decre_GN))
+
+write.xlsx(GN_list, paste0(output_dir_fig, "for_strings_CFB_match_site_GN_all.xlsx"))
+
+igot_CFB_change<-filter(igot_zscore, GN %in% sps_CFB_change_gn_site, !is.na(sps_p0_1_log2m_imp_igot))%>%
+                 select("GN", "site_ID", "igot_cluster", ends_with("igot"))
+
+strings_cluster_gn<-read.delim(paste0(output_dir, "Strings/string_kmeans_clusters_CFB_match_sps_restrict.tsv"), sep = "\t", header = TRUE, fileEncoding = "UTF-8")%>%
+  filter(cluster.number == 1)%>%pull(protein.name)
+
+igot_CFB_change_cl1<-filter(igot_CFB_change, GN %in% strings_cluster_gn)%>%
+                     trans_longdata()
+
+igot_CFB_change_cl1<-filter(igot_CFB_change, GN %in% strings_cluster_gn)%>%
+                     trans_longdata()
+
+
+CFB_GN_color_set <- function(genes){genes <- sort(unique(genes))
+                                    n <- length(genes)
+                                    cols <- colorspace::qualitative_hcl(
+                                    n, palette = "Dark 3" )  # "Dark 3" も良い
+                                    setNames(cols, genes)}
+
+# genes<-sort(unique(igot_CFB_change_cl1$GN))
+# CFB_GN_color<- CFB_GN_color_set(genes)
+
+CFB_GN_color<- c("Nrcam" = "#ff1493","Ntrk2" =  "#32cd32",
+                 "Cntn1" = "#ffc0cb","Cntn4" = "#ff7f50","Nfasc" =  "#b0e0e6",
+                 "Ptprz1" = "#dc143c","L1cam" = "#ffe4e1", "Bsg" = "#f5deb3",
+                 "Plxnb1" = "#191970", "Igsf8" = "#4169e1", "Ncam1" = "#006400",
+                 "Ncam2" = "#40e0d0", "Sema4d" = "#ffa500")
+
+
+
+CFB_change_igot_plot<-igot_ave_plot(igot_CFB_change_cl1 ,CFB_GN_color)
+
+CFB_change_igot_plot
+saveRDS(CFB_change_igot_plot, paste0(output_dir_fig, "CFB_change_site_igot_lineplot.rds"))
+
+#cluster1のgpepの対象糖鎖の動き
+
+sps_CFB_incre_ratio_df<-filter(gpep_ratio_zscore, ratio_cluster %in% c(2,3), GlycanComposition %in% incre_glycan, Category == "CF_Bisect")
+sps_CFB_decre_ratio_df<-filter(gpep_ratio_zscore, ratio_cluster %in% 1, GlycanComposition %in% decre_glycan, Category == "CF_Bisect" )
+
+sps_gpep_cl1<-bind_rows(sps_CFB_incre_ratio_df, sps_CFB_decre_ratio_df)%>% 
+              filter(GN %in% strings_cluster_gn)%>%
+              select( GN, site_ID,glycan_ID, acc_site_glycan_ID, starts_with("ratio"))
+
+target_glycan_ID<-c("Hex(3)HexNAc(5)Fuc(1)_CF_Bisect", "Hex(4)HexNAc(5)Fuc(2)_CF_Bisect")
+
+sps_gpep_c1_long<-trans_longdata_gpep(sps_gpep_cl1,target_glycan_ID)
+CFB_site_share<-gpep_ave_plot(sps_gpep_c1_long, CFB_GN_color)
+CFB_site_share
+saveRDS(CFB_site_share, paste0(output_dir_fig, "CFB_change_gpep_lineplot.rds"))
+
+
+```
