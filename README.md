@@ -11,13 +11,12 @@ To execute the pipeline successfully, users must install several required R pack
 ## Feedback and Support
 
 We welcome feedback from the research community. If you have any questions, encounter issues, or would like to provide comments or suggestions, please feel free to contact us.\
-\
 
-## **Workflow**
+## Workflow
 
 ### 1. Generate identification and quantification lists
 
-#### Glycopeptide data
+#### [Glycopeptide data]
 
 **Input**
 
@@ -33,7 +32,7 @@ We welcome feedback from the research community. If you have any questions, enco
 
 -   sps_gpep.xlsx
 
-#### IGOT data
+#### [IGOT data]
 
 **Input**
 
