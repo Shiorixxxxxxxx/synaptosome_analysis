@@ -16,37 +16,25 @@ We welcome feedback from the research community. If you have any questions, enco
 
 ### 1. Generate identification and quantification lists
 
-#### [Glycopeptide data]
+#### The identification and quantification lists used as input files for the downstream analyses are available from Zenodo.
 
-**Input**
+**Glycopeptide data**
 
--   whole and synaptosome glycopeptide PSMs dataset
+Input files:
 
-**Scripts**
+-   `whole_gpep.xlsx`: whole-brain homogenate glycopeptide data
 
--   GD_mesure_keep_folder_250212
+-   `sps_gpep.xlsx`: synaptosome fraction glycopeptide data
 
-**Output**
+These files were generated from glycopeptide identification results obtained by analyzing the raw LC-MS data using Glyco-Decipher.
 
--   sps_gpep.xlsx
+**IGOT data**
 
--   sps_gpep.xlsx
+Input file:
 
-#### [IGOT data]
+-   `igot_v3_restrict.xlsx`: whole-brain homogenate and synaptosome fraction IGOT data
 
-**Input**
-
--   whole and synaptosome IGOT PSMs dataset
-
-**Scripts**
-
--   IGOT_PD_LRQ_ver2.0.Rmd
-
--   IGOT_LFQ_utils.R
-
-**Output**
-
--   igot_v2_xlsx
+This file was generated from isotope-coded glycosylation-site-specific tagging (IGOT) analysis of glycopeptide samples, followed by analysis of the resulting raw data using MASCOT.
 
 ### 2. Data preprocessing and normalization
 
@@ -57,8 +45,6 @@ We welcome feedback from the research community. If you have any questions, enco
 -   Normalization
 
 -   Missing value imputation
-
-<!-- -->
 
 -   Glycopeptide/IGOT calculation (IGOT-normalized glycopeptides)
 
