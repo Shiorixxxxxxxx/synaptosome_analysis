@@ -11,17 +11,18 @@ library(readxl)
 library(openxlsx)
 library(dplyr)
 library(pcaMethods)
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils-pretreat_v2.R")
+source("../Rscript/utils-pretreat_v2.R")
+
 ```
 
 # load raw data
 ```{r}
-dir_name<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/"
+dir_name<-"../demo_data/expected_output/"
 
-sps_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "sps_igot")
-sps_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/sps_gpep.xlsx")
-whole_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "whole_igot")
-whole_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/whole_gpep.xlsx")
+sps_igot <- read.xlsx("../demo_data/input/igot.xlsx", "sps_igot")
+sps_gpep <- read.xlsx("../demo_data/input/sps_gpep.xlsx")
+whole_igot <- read.xlsx("../demo_data/input/igot.xlsx", "whole_igot")
+whole_gpep <- read.xlsx("../demo_data/input/whole_gpep.xlsx")
 
 ```
 
@@ -68,7 +69,6 @@ whole_gpep <- cbind(whole_gpep, whole_gpep_log2m)
 # log2m gpep => select rows
 ```{r}
 
-#data countする数値が>0だったため(マイナスもカウントしない)、NA以外の数値カウントのみに修正
 whole_gpep <- whole_gpep %>% 
   get_mean_column() %>%
   select_rows()
@@ -79,7 +79,6 @@ sps_gpep <- sps_gpep %>%
   get_mean_column() %>% 
   select_rows()
   
-#write.xlsx(sps_gpep, "G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/check.xlsx")
 
 ```
 
@@ -103,8 +102,8 @@ sps_gpep   <- cbind(sps_gpep, sps_gpep_imp)
 whole_igot <- cbind(whole_igot, whole_igot_imp)
 whole_gpep <- cbind(whole_gpep, whole_gpep_imp)
 
-write.xlsx(sps_igot, paste0(dir_name, "sps_all_igot_imp_v3_restrict.xlsx"))
-write.xlsx(whole_igot, paste0(dir_name, "whole_all_igot_imp_v3_restrict.xlsx"))
+write.xlsx(sps_igot, paste0(dir_name, "sps_all_igot_imp.xlsx"))
+write.xlsx(whole_igot, paste0(dir_name, "whole_all_igot_imp.xlsx"))
 
 ```
 
@@ -120,9 +119,9 @@ sps_ratio_df<-merged_file(sps_gpep, sps_igot)
 whole_output_list<-output_merge_file(whole_gpep, whole_igot, whole_ratio_df)
 sps_output_list<-output_merge_file(sps_gpep, sps_igot, sps_ratio_df)
 
-whole_output_name <-paste0(dir_name, "whole", "_gpep-igot_ratio_4.2_restrict.xlsx")
+whole_output_name <-paste0(dir_name, "whole", "_gpep-igot_ratio.xlsx")
 write.xlsx(whole_output_list, whole_output_name)
-sps_output_name<-paste0(dir_name, "sps", "_gpep-igot_ratio_4.2_restrict.xlsx")
+sps_output_name<-paste0(dir_name, "sps", "_gpep-igot_ratio.xlsx")
 write.xlsx(sps_output_list, sps_output_name)
 
 ```

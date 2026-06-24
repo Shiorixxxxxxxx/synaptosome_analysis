@@ -21,17 +21,20 @@ library(bio3d)
 library(httr)
 library(jsonlite)
 
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_HexNAc_freq_analysis.R")
+source("../Rscript/utils_HexNAc_freq_analysis.R")
 ```
 
-#HexNAcの分岐数, 末端Fucが変動するGNの抽出
-#HexNAcのFreqをパターンごとに計算
-#patternごとに0.4を超える分子を抽出(2個以上取れたものは分散しているため削除)
-#HNの重心が左にずれた(減少した)分子と右ずれ(増加した)分子を抽出
+# Extract GNs with altered HexNAc branching or terminal fucosylation
+# Calculate the frequency of HexNAc numbers for each temporal pattern
+# Select molecules with a pattern-specific frequency greater than 0.4
+# Exclude molecules assigned to two or more patterns because of dispersed distributions
+# Identify molecules with a leftward (decreased) or rightward (increased) shift in the HexNAc centroid
 ```{r, fig.width=10, fig.height=5}
-sps_ncor_gpep<-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/CC_sps_noncor_restrict.xlsx", 1)
-output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
 
+dir<-"../demo_data/expected_output/"
+output_dir_fig<-paste0(dir,"fig/")
+
+sps_ncor_gpep<-read.xlsx(paste0(dir, "CC_sps_noncor.xlsx"), 1)
 sps_HN_all<-Glycan_class(sps_ncor_gpep, "Branch_HexNAc")
 sps_Bisect_HN<-Glycan_class(sps_ncor_gpep, "Bisecting")%>%
                Glycan_class("Branch_HexNAc")
@@ -79,7 +82,9 @@ non_CF_count_HN_cl<-filter(sps_CF_HN, all_CF ==0)%>%
                         plot_data_make(col = c("acc_site_ID", "pattern"), FALSE, "Branch_HexNAc")%>%
                         group_by(GN) %>%filter(n_distinct(pattern) > 1) %>%ungroup()
 
-#頻度のHexNAc分岐ごとの頻度の計算(変動したHexNAc(tFuc)/GN中の全変動acc_site_glycan)
+# Calculate frequencies by HexNAc branch number among altered acc_site_glycan entries
+# in GNs with altered HexNAc branching or terminal fucosylation
+
 HN_freq_all<-freq_cal(all_count_HN_cl, "Branch_HexNAc")
 B_HN_freq_all<-freq_cal(Bisect_count_HN_cl, "Branch_HexNAc")
 nB_HN_freq_all<-freq_cal(non_Bisect_count_HN_cl, "Branch_HexNAc")
@@ -95,10 +100,13 @@ nofe_HN_freq_all<-freq_cal(nofe_count_HN_cl, "Branch_HexNAc")
 CFB_HN_freq_all<-freq_cal(CFB_count_HN_cl, "Branch_HexNAc")
 nCFB_HN_freq_all<-freq_cal(nCFB_count_HN_cl, "Branch_HexNAc")
 
-#頻度が0.4以上ある分子を抽出(increとdecreが分散しほとんど変化が見えない分子を排除):0.4でいいかどうかは要検討
-#１つのGN内に３つ以上の行がある分子の処理: HexNAc(tFuc)数が同数同士でFreqを比較し、大きい方を残す
-#→同数HexNAcにincreとdecreがある状態のため、どっちの動きが有意かを計算
-#異なるHexNAc(tFuc)にincreとdecreが分散した場合、Incre同士のHexNAcの平均値、あるいはdecre同士のHexNAcの平均値で対照の数値を引く
+# Extract molecules with a frequency of 0.4 or higher to exclude molecules in which increasing and decreasing patterns are dispersed and therefore show little apparent directional change 
+#Note: whether 0.4 is an appropriate threshold should be further evaluated
+# Process molecules with three or more rows within the same GN: for entries with the same HexNAc (or terminal Fuc) number, compare their frequencies and retain the entry with the higher frequency
+# Because increasing and decreasing patterns coexist at the same HexNAc number, evaluate which direction of change is more significant
+# When increasing and decreasing patterns are distributed across different HexNAc
+# or terminal Fuc numbers, calculate the mean HexNAc number for increasing entries
+# or decreasing entries, and subtract the corresponding reference value
 
 extract_HN_change_GN<-glycan_dif_analysis(HN_freq_all, "Branch_HexNAc")
 extract_BHN_change_GN<-glycan_dif_analysis(B_HN_freq_all, "Branch_HexNAc")
@@ -113,35 +121,35 @@ extract_nofe_change_GN<-glycan_dif_analysis(nofe_HN_freq_all, "Branch_HexNAc")
 
 extract_CFBHN_change_GN<-glycan_dif_analysis(CFB_HN_freq_all, "Branch_HexNAc")
 
-decre_HN_GN<-extract_HN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_HN_GN<-extract_HN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_HN_GN<-extract_HN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_HN_GN<-extract_HN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
-decre_BHN_GN<-extract_BHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_BHN_GN<-extract_BHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_BHN_GN<-extract_BHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_BHN_GN<-extract_BHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
-decre_nBHN_GN<-extract_nBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_nBHN_GN<-extract_nBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_nBHN_GN<-extract_nBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_nBHN_GN<-extract_nBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
-decre_CFHN_GN<-extract_CFHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_CFHN_GN<-extract_CFHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_CFHN_GN<-extract_CFHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_CFHN_GN<-extract_CFHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
-decre_nCFHN_GN<-extract_nCFHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_nCFHN_GN<-extract_nCFHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_nCFHN_GN<-extract_nCFHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_nCFHN_GN<-extract_nCFHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
-decre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
-decre_nCFBHN_GN<-extract_nCFBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_nCFBHN_GN<-extract_nCFBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_nCFBHN_GN<-extract_nCFBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_nCFBHN_GN<-extract_nCFBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
-decre_onCFHN_GN<-extract_onCFHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-decre_onBHN_GN<-extract_onBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
+decre_onCFHN_GN<-extract_onCFHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+decre_onBHN_GN<-extract_onBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
 
-decre_nofe_GN<-extract_nofe_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
+decre_nofe_GN<-extract_nofe_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
 
 
-decre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()#左ずれ
-incre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()#右ずれ
+decre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num<0)%>%pull(GN)%>%unique()
+incre_CFBHN_GN<-extract_CFBHN_change_GN%>%filter(dif_num>0)%>%pull(GN)%>%unique()
 
            
 decre_CFHN_pair<-filter(CF_count_HN_cl, GN %in% decre_CFHN_GN)%>%
@@ -168,7 +176,7 @@ pair_wise_output_list<-list("CF(+CFB)_glycan_pairwise"=decre_CFHN_pair,
                             "only_CF_glycan_pairwise"=decre_onCFHN_pair,
                             "no_feature_glycan_pairwise"=decre_nofe_pair)
 
-output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/"
+output_dir<-dir
 write.xlsx(pair_wise_output_list, paste0(output_dir, "HN_decrease_pair_wise_res.xlsx"))
 
 
@@ -205,7 +213,7 @@ match_protein_venn<-venn_analysis(match_protein)
 saveRDS(match_protein_venn, paste0(output_dir_fig, "HexNAc_decre_venn.rds"))
 
 for_strings_data<-data.frame(decre_CFBHN_GN)
-write.xlsx(for_strings_data, paste(output_dir_fig, "for_strings_sps_HexNAc_decre_GN.xlsx"))
+write.xlsx(for_strings_data, paste(output_dir, "for_strings_sps_HexNAc_decre_GN.xlsx"))
 
 saveRDS(freq_HN_decre, paste0(output_dir_fig, "freq_HN_decre.rds"))
 saveRDS(freq_CFHN_decre, paste0(output_dir_fig, "freq_CFHN_decre.rds"))

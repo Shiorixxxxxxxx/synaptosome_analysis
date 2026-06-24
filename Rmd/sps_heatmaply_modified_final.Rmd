@@ -22,19 +22,17 @@ library(RColorBrewer)
 library(venndir)
 library(textshaping)
 
-source("./utils_heatmap_modified.R")
+source("../Rscript/utils_heatmap_modified.R")
 ```
 
 ```{r}
-output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/"
-# data_input
-s <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
-w <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.2_restrict.xlsx","pattern_result")
+dir<-"../demo_data/expected_output/"
+output_dir<-paste0(dir, "fig/")
 
-#cor_synapse_org_GO_res
-cor_GO_res<-read.xlsx(paste0(output_dir, "sps_cor_protein_BP_enrichment_res_restrict.xlsx"))
-tar_ID<-"GO:0050808" #synapse organization
-cor_tar_GN<-extract_GN(cor_GO_res, tar_ID)
+
+# data_input
+s <- read.xlsx(paste0(dir, "sps_pattern_result.xlsx"), "pattern_result")
+w <- read.xlsx(paste0(dir, "whole_pattern_result.xlsx"),"pattern_result")
 
 w <- w %>%
     mutate(igot_cluster = ifelse(igot_cluster == 2, "decre", igot_cluster)) %>%
@@ -54,45 +52,15 @@ s_ext <- s %>% select_cols() %>% add_glycan_structural_info() %>% add_cor_ratio_
 
 ```
 
-# select rows (改定するまで下記の旧コード使用)
-- select correlated rows
-- select uncorrelated rows
-```{r}
-# w_cor <- w_ext %>% select_rows(cor = TRUE, cluster = "gpep_cluster")
-# s_cor <- s_ext %>% select_rows(cor = TRUE, cluster = "gpep_cluster")
-# w_ncor <- w_ext %>% select_rows(cor = FALSE, cluster = "ratio_cluster")
-# s_ncor <- s_ext %>% select_rows(cor = FALSE, cluster = "ratio_cluster")
-# 
-# output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/test_fig/"
-# saveRDS(w_cor, paste0(output_dir, "output/w_cor.rds"))
-# saveRDS(s_cor,  paste0(output_dir, "output/s_cor.rds"))
-# saveRDS(w_ncor,  paste0(output_dir, "output/w_ncor.rds"))
-# saveRDS(s_ncor,  paste0(output_dir, "output/s_ncor.rds"))
-# 
-# # protein_id category
-# acc_w_cor_gpep_ncor_ratio <- setdiff(w_cor$acc, w_ncor$acc)
-# acc_w_cor_gpep <- unique(w_cor$acc)
-# 
-# w_ext_cor <- w_ext %>% filter(acc %in% acc_w_cor_gpep_ncor_ratio)
-# w_ext_ncor <- w_ext %>% filter(acc %in% acc_w_cor_gpep)
-# s_ext_cor <- s_ext %>% filter(acc %in% acc_w_cor_gpep_ncor_ratio)
-# s_ext_ncor <- s_ext %>% filter(acc %in% acc_w_cor_gpep)
-```
 
-#上記の修正が完了したら消す
 ```{r}
 
-#適応するデータの選別(cor or non-cor, 少なくともGlycan1つでCluster#がついているもの.accすべてかacc-siteで抽出)
 
 whole_cor_df<-data_cor_select(w_ext, "gpep_cluster", TRUE, 0.6, "acc_site_ID", FALSE, 0)
 sps_cor_df<-data_cor_select(s_ext, "gpep_cluster", TRUE, 0.6, "acc_site_ID", FALSE, 0)
 whole_noncor_df<-data_cor_select(w_ext, "ratio_cluster", FALSE, 0.6, "acc_site_ID", FALSE, 0)
 sps_noncor_df<-data_cor_select(s_ext, "ratio_cluster", FALSE, 0.6, "acc_site_ID", FALSE, 0)
 
-
-output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
-#venn analysisによるデータ選別キーの取得
-#accすべてでcorrationのもののみをextract
 whole_venn<-venn_analysis(whole_cor_df, whole_noncor_df, "acc")
 sps_venn<-venn_analysis(sps_cor_df, sps_noncor_df, "acc")
 
@@ -102,19 +70,18 @@ sps_venn_site<-venn_analysis(sps_cor_df, sps_noncor_df, "acc_site_ID")
 whole_venn_gpep<-venn_analysis(whole_cor_df, whole_noncor_df, "acc_site_glycan_ID")
 sps_venn_gpep<-venn_analysis(sps_cor_df, sps_noncor_df, "acc_site_glycan_ID")
 
-saveRDS(whole_venn, paste0(output_dir_fig, "cor_whole_acc_venn.rds"))
-saveRDS(sps_venn, paste0(output_dir_fig, "cor_sps_acc_venn.rds"))
-saveRDS(whole_venn_site, paste0(output_dir_fig, "cor_whole_site_venn.rds"))
-saveRDS(sps_venn_site, paste0(output_dir_fig, "cor_sps_site_venn.rds"))
-saveRDS(whole_venn_gpep, paste0(output_dir_fig, "cor_whole_gpep_venn.rds"))
-saveRDS(sps_venn_gpep, paste0(output_dir_fig, "cor_sps_gpep_venn.rds"))
+saveRDS(whole_venn, paste0(output_dir, "cor_whole_acc_venn.rds"))
+saveRDS(sps_venn, paste0(output_dir, "cor_sps_acc_venn.rds"))
+saveRDS(whole_venn_site, paste0(output_dir, "cor_whole_site_venn.rds"))
+saveRDS(sps_venn_site, paste0(output_dir, "cor_sps_site_venn.rds"))
+saveRDS(whole_venn_gpep, paste0(output_dir, "cor_whole_gpep_venn.rds"))
+saveRDS(sps_venn_gpep, paste0(output_dir, "cor_sps_gpep_venn.rds"))
 
 whole_cor_acc<-extract_items(whole_venn@label_df, "correlation")
 whole_noncor_acc<-extract_items(whole_venn@label_df, "non_correlation")
 sps_cor_acc<-extract_items(sps_venn@label_df, "correlation")
 sps_noncor_acc<-extract_items(sps_venn@label_df, "non_correlation")
 
-#Heatmap用のcor & non-corデータの抽出
 
 whole_cor_heatmap_df<-w_ext %>%
                       filter( acc %in% whole_cor_acc)
@@ -122,9 +89,6 @@ whole_noncor_heatmap_df<-w_ext %>%
                       filter( acc %in% whole_noncor_acc)
 sps_cor_heatmap_df<-s_ext %>%
                       filter( acc %in% sps_cor_acc)
-
-sps_cor_GO_tar_heatmap_df<-s_ext %>%
-                      filter( GN %in% cor_tar_GN)
 
 sps_noncor_heatmap_df<-s_ext %>%
                       filter( acc %in% sps_noncor_acc)
@@ -140,31 +104,26 @@ s_ext_ncor<-sps_noncor_heatmap_df
 
 ```
 
-# GO Term / Sort Keyは要検討（張）
+# GO Term / Sort Key
 ```{r}
-# IGOTの増減ごとにGO-termの振り分け
+# GO enrichment analysis of IGOT-derived changes
 set.seed(2025)
 w_go_cor <- GO_term(w_ext_cor, "CC")
 s_go_cor <- GO_term(s_ext_cor, "CC")
 w_go_ncor <- GO_term(w_ext_ncor, "CC")
 s_go_ncor <- GO_term(s_ext_ncor, "CC")
-s_go_cor_gotar<-GO_term(sps_cor_GO_tar_heatmap_df, "CC")
 
-#Glycan_sort_listの作成
+#Glycan_sort_list
 w_cor_heatmap_input <- sort_key(w_go_cor, "Category")
 s_cor_heatmap_input <- sort_key(s_go_cor, "Category")
 w_ncor_heatmap_input <- sort_key(w_go_ncor, "Category")
 s_ncor_heatmap_input <- sort_key(s_go_ncor, "Category")
-s_cor_gotar_heatmap_input <- sort_key(s_go_cor_gotar, "Category")
 
 
-
-
-write.xlsx(w_cor_heatmap_input, paste0(output_dir, "CC_whole_cor_restrict.xlsx"))
-write.xlsx(s_cor_heatmap_input, paste0(output_dir,"CC_sps_cor_restrict.xlsx"))
-write.xlsx(w_ncor_heatmap_input, paste0(output_dir,"CC_whole_noncor_restrict.xlsx"))
-write.xlsx(s_ncor_heatmap_input, paste0(output_dir,"CC_sps_noncor_restrict.xlsx"))
-write.xlsx(s_cor_gotar_heatmap_input, paste0(output_dir,"CC_sps_cor_gotar_restrict.xlsx"))
+write.xlsx(w_cor_heatmap_input, paste0(dir, "CC_whole_cor.xlsx"))
+write.xlsx(s_cor_heatmap_input, paste0(dir,"CC_sps_cor.xlsx"))
+write.xlsx(w_ncor_heatmap_input, paste0(dir,"CC_whole_noncor.xlsx"))
+write.xlsx(s_ncor_heatmap_input, paste0(dir,"CC_sps_noncor.xlsx"))
 
 ```
 
@@ -174,14 +133,10 @@ w_cor_heatmap_output <- heatmaply_fig(w_cor_heatmap_input, "gpep_cluster")
 s_cor_heatmap_output <- heatmaply_fig(s_cor_heatmap_input, "gpep_cluster")
 w_ncor_heatmap_output <- heatmaply_fig(w_ncor_heatmap_input, "ratio_cluster")
 s_ncor_heatmap_output <- heatmaply_fig(s_ncor_heatmap_input, "ratio_cluster")
-s_ncor_gpep_heatmap_output <- heatmaply_fig(s_ncor_heatmap_input, "gpep_cluster")
-s_cor_gotar_heatmap_output <- heatmaply_fig(s_cor_gotar_heatmap_input, "gpep_cluster")
 
-htmlwidgets::saveWidget(s_ncor_gpep_heatmap_output, paste0(output_dir, "CC_sps_ncor_gpep_restrict.html"))
-htmlwidgets::saveWidget(s_ncor_heatmap_output, paste0(output_dir, "CC_sps_ncor_restrict.html"))
-htmlwidgets::saveWidget(s_cor_heatmap_output, paste0(output_dir, "CC_sps_cor_restrict.html"))
-htmlwidgets::saveWidget(w_ncor_heatmap_output, paste0(output_dir, "CC_whole_ncor_restrict.html"))
-htmlwidgets::saveWidget(w_cor_heatmap_output, paste0(output_dir, "CC_whole_cor_restrict.html"))
-htmlwidgets::saveWidget(s_cor_gotar_heatmap_output, paste0(output_dir, "CC_sps_cor_gotar_restrict.html"))
-# 
+# htmlwidgets::saveWidget(s_ncor_heatmap_output, paste0(output_dir, "CC_sps_ncor_restrict.html"))
+# htmlwidgets::saveWidget(s_cor_heatmap_output, paste0(output_dir, "CC_sps_cor_restrict.html"))
+# htmlwidgets::saveWidget(w_ncor_heatmap_output, paste0(output_dir, "CC_whole_ncor_restrict.html"))
+# htmlwidgets::saveWidget(w_cor_heatmap_output, paste0(output_dir, "CC_whole_cor_restrict.html"))
+ 
 ```

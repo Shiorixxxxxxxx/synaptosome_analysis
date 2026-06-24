@@ -22,21 +22,23 @@ library(httr)
 library(jsonlite)
 library(R.utils)
 
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_Domain_analysis.R")
+source("../Rscript/utils_Domain_analysis.R")
 
 ```
 
-#HexNAcの変動を起こすCFB糖鎖を持つ分子のdomain enrichment
-#backgroundはspsで検出された全GN
-#targetは上記でCFBのうちHexNAc変動に分類された33GN
+# Perform domain enrichment analysis for molecules carrying CFB glycans with altered HexNAc branching
+# Use all GNs detected in the synaptosome fraction as the background set
+# Use the 33 GNs classified above as showing HexNAc alterations among CFB-glycan-containing molecules as the target set
 ```{r, fig.width=10, fig.height=5}
-sps_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
+dir<-"../demo_data/expected_output/"
+protein_db_dir<-"../demo_data/input/"
+output_dir_fig<-paste0(dir,"fig/")
 
-output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
+sps_gpep <- read.xlsx(paste0(dir,"sps_pattern_result.xlsx"), "pattern_result")
 
 sps_gpep<-rename(sps_gpep, "acc" = "First_acc")
 
-decre_CFBHN_GN<-read.xlsx(paste(output_dir_fig, "for_strings_sps_HexNAc_decre_GN.xlsx"))%>%pull(decre_CFBHN_GN)
+decre_CFBHN_GN<-read.xlsx(paste(dir, "for_strings_sps_HexNAc_decre_GN.xlsx"))%>%pull(decre_CFBHN_GN)
 
 domain_res<-domain_enrichment(decre_CFBHN_GN,sps_gpep)
 
@@ -50,28 +52,20 @@ DoE_plot
 
 ```
 
-#DomainとCategory情報mapping
-#変動している分子のUniprotよりdomain featureとTmemを取得
-#最初のTrasmembrane領域を取得
-#変動している分子の糖鎖結合サイトの絞り込み(/で区切られたサイトの中でPotesiteのものを取得(poteがない場合はそのまま)→その中でも最初のものを取得)
+# Map domain and category information
+# Retrieve UniProt domain features and transmembrane regions for altered molecules
+# Extract the first transmembrane region
+# Filter glycosylation sites in altered molecules:
+# retain potential sites from slash-separated site annotations when available;
+# otherwise keep the original site annotation
+# Extract the first retained site
 ```{r, fig.width=10, fig.height=5}
 
-sps_ncor_gpep<-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/CC_sps_noncor_restrict.xlsx", 1)
-protein_length<-read.csv("E:/R_program/data_base/Swissprot_Mouse_20201124_ver2.csv")%>%
+sps_ncor_gpep<-read.xlsx(paste0(dir, "CC_sps_noncor.xlsx"), 1)
+protein_length<-read.csv(paste0(protein_db_dir, "Swissprot_Mouse_20201124_ver2.csv"))%>%
                 select(acc_num,GN, LEN)%>%
                 rename("acc" = "acc_num")
 
-pre_syp<-read.xlsx("E:/R_program/data_base/Synapse/uniprotkb_pre_synapse_AND_model_organis_2026_02_02.xlsx")%>%
-                select(Entry,Gene.Names)%>%
-                rename("acc" = "Entry")%>%
-                separate_rows(Gene.Names, sep = "\\s+") %>%
-                rename(Gene = Gene.Names)
-
-post_syp<-read.xlsx("E:/R_program/data_base/Synapse/uniprotkb_post_synapse_AND_model_organi_2026_02_02.xlsx")%>%
-                select(Entry,Gene.Names)%>%
-                rename("acc" = "Entry")%>%
-                separate_rows(Gene.Names, sep = "\\s+") %>%
-                rename(Gene = Gene.Names)
 
 decre_glycan<-c("Hex(3)HexNAc(5)Fuc(1)", "Hex(4)HexNAc(5)Fuc(2)")
 incre_glycan<-c("Hex(3)HexNAc(4)Fuc(1)", "Hex(4)HexNAc(4)Fuc(2)")
@@ -94,15 +88,6 @@ for_strings<-filter(sps_ncor_gpep, acc_site_ID %in% CFB_match_site)%>%
 #上chankのCFBの同一サイト上での変化を起こしている部位をマーク
 #plotするdataの選別
 
-string_res<-read.delim(paste0(output_dir, "Strings/string_MCL_clusters__sps_HN_decre_GN_restrict.tsv"), sep = "\t", header = TRUE, fileEncoding = "UTF-8")
-
-
-Ad_mol<-string_res%>%filter(cluster.number == 1)%>%
-        pull(protein.name)
-transp_mol<-string_res%>%filter(cluster.number == 2)%>%
-        pull(protein.name)
-            
-gn_order<-c(Ad_mol,transp_mol)
 
 #domainの抽出
 target_GN_df<-filter(sps_ncor_gpep, GN %in% decre_CFBHN_GN)
@@ -110,90 +95,10 @@ target_domain<-get_feature(target_GN_df)%>%
                mutate(description = ifelse(description=="", type, description))%>%
                left_join(protein_length, by = "acc")
 
-Ad_GN_df<-filter(sps_ncor_gpep, GN %in% Ad_mol)
-Ad_domain<-get_feature(Ad_GN_df)%>%
-               mutate(description = ifelse(description=="", type, description))%>%
-               left_join(protein_length, by = "acc")
 
-transp_GN_df<-filter(sps_ncor_gpep, GN %in%transp_mol)
-transp_domain<-get_feature(transp_GN_df)%>%
-               mutate(description = ifelse(description=="", type, description))%>%
-               left_join(protein_length, by = "acc")
-
-posi_syn_GN_df<-filter(sps_ncor_gpep, GN %in% gn_order)
-posi_syn_domain<-get_feature(posi_syn_GN_df)%>%
-               mutate(description = ifelse(description=="", type, description))%>%
-               left_join(protein_length, by = "acc")
-
-Ad_all<-domain_plot(sps_ncor_gpep, Ad_domain, "All", CFB_match_site, unique(Ad_domain$GN)) #All, "TM", "GPI", "Secreted"のいずれか
-transp_all<-domain_plot(sps_ncor_gpep, transp_domain, "All", CFB_match_site, unique(transp_domain$GN))
 domain_all<-domain_plot(sps_ncor_gpep, target_domain, "All", CFB_match_site, unique(target_domain$GN))
 
-
-
-Ad_all
-transp_all
+saveRDS(domain_all, paste0(output_dir_fig, "Glycan_remodeling_domain_map.rds"))
 domain_all
 
 ```
-
-
-#domain fisher 解析
-```{r, fig.width=10, fig.height=5}
-
-sps_ncor_gpep<-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/CC_sps_noncor_restrict.xlsx", 1)
-protein_length<-read.csv("E:/R_program/data_base/Swissprot_Mouse_20201124_ver2.csv")%>%
-                select(acc_num,GN, LEN)%>%
-                rename("acc" = "acc_num")
-
-#decre Branch HN in CFB of 33 protein
-
-tar_df<-sps_ncor_gpep %>% filter(GN %in% decre_CFBHN_GN)
-
-sps_CFB_incre_df<-filter(tar_df, ratio_cluster %in% c(2,3), Category == "CF_Bisect")
-sps_CFB_decre_df<-filter(tar_df, ratio_cluster %in% 1,  Category == "CF_Bisect")
-
-match_site_list<-list( "Increased_CFB_site" = unique(sps_CFB_incre_df$acc_site_ID), "Decreased_CFB_site" = unique(sps_CFB_decre_df$acc_site_ID))
-CFB_site_venn<-venn_analysis(match_site_list)
-CFB_match_site<-extract_items(CFB_site_venn@label_df, "Increased_CFB_site&Decreased_CFB_site")%>%unname()  #35 site
-
-# 
-# target_GN_df<-filter(sps_ncor_gpep, GN %in% decre_CFBHN_GN)
-# target_domain<-get_feature(target_GN_df)%>%
-#                mutate(description = ifelse(description=="", type, description))%>%
-#                left_join(protein_length, by = "acc")
-
-#IGOT data を用いて、標的タンパク質中の全Glylation site 部位のdomainの抽出
-IGOT_df<-sps_imp_df%>%mutate(site = gsub("^.*_", "", acc_site_ID)) 
-igot_target_domain<-get_feature(IGOT_df)%>%
-               mutate(description = ifelse(description=="", type, description))%>%
-               left_join(protein_length, by = "acc")
-
-
-igot_site_in_domain<-domain_position(IGOT_df, igot_target_domain)
-
-
-fisher_analaysis(igot_site_in_domain, "Ig-like C2-type", CFB_match_site)
-fisher_analaysis(igot_site_in_domain, "Fibronectin type-III", CFB_match_site)
-fisher_analaysis(igot_site_in_domain, "Extracellular", CFB_match_site)
-
-```
-
-#小胞輸送シグナルの抽出
-```{r, fig.width=10, fig.height=5}
-
-CFB_posi_acc<-unique(filter(sps_ncor_gpep, GN %in% decre_CFBHN_GN)$acc)
-CFB_nega_acc<-unique(filter(sps_ncor_gpep,!(GN %in% decre_CFBHN_GN))$acc)
-
-tm_tbl <- igot_target_domain %>%
-  filter(type == "Transmembrane") %>%   # あなたの注釈に合わせて調整
-  group_by(acc) %>%
-  summarise(
-    tm_start = min(start, na.rm=TRUE),
-    tm_end   = max(end,   na.rm=TRUE),  # 多回膜は一旦maxを使う
-    .groups="drop"
-  )
-
-```
-
-

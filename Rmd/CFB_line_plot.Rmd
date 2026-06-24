@@ -22,7 +22,7 @@ library(bio3d)
 library(httr)
 library(jsonlite)
 
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_CFB_line_plot.R")
+source("../Rscript/utils_CFB_line_plot.R")
 
 ```
 
@@ -30,12 +30,14 @@ source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zha
 #increased-glycan: H3HN4F1-CFB, H4HN4F2-CFB
 #decreased-glycan: H3HN5F1-CFB, H4HN5F2-CFB
 ```{r, fig.width=10, fig.height=5}
+dir<-"../demo_data/expected_output/"
+string_res_dir<-"../demo_data/String_result/"
 
-sps_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/CC_sps_noncor_restrict.xlsx", 1)
-igot_zscore<- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "igot_zscore")
-gpep_ratio_zscore<- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "ratio_zscore")
-output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig/"
-output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
+sps_gpep <- read.xlsx(paste0(dir, "CC_sps_noncor.xlsx"), 1)
+igot_zscore<- read.xlsx(paste0(dir,"sps_pattern_result.xlsx"), "igot_zscore")
+gpep_ratio_zscore<- read.xlsx(paste0(dir,"sps_pattern_result.xlsx"), "ratio_zscore")
+output_dir<-dir
+output_dir_fig<-paste0(dir,"fig/")
 
 decre_glycan<-c("Hex(3)HexNAc(5)Fuc(1)", "Hex(4)HexNAc(5)Fuc(2)")
 incre_glycan<-c("Hex(3)HexNAc(4)Fuc(1)", "Hex(4)HexNAc(4)Fuc(2)")
@@ -73,12 +75,17 @@ GN_list<-list("match" = data.frame(sps_CFB_change_gn_site),
               "incre_only" = data.frame(sps_CFB_incre_GN),
               "decre_only" = data.frame(sps_CFB_decre_GN))
 
-write.xlsx(GN_list, paste0(output_dir_fig, "for_strings_CFB_match_site_GN_all.xlsx"))
+write.xlsx(GN_list, paste0(output_dir, "for_strings_CFB_match_site_GN_all.xlsx"))
 
+
+```
+
+# String data analysis
+```{r}
 igot_CFB_change<-filter(igot_zscore, GN %in% sps_CFB_change_gn_site, !is.na(sps_p0_1_log2m_imp_igot))%>%
                  select("GN", "site_ID", "igot_cluster", ends_with("igot"))
 
-strings_cluster_gn<-read.delim(paste0(output_dir, "Strings/string_kmeans_clusters_CFB_match_sps_restrict.tsv"), sep = "\t", header = TRUE, fileEncoding = "UTF-8")%>%
+strings_cluster_gn<-read.delim(paste0(string_res_dir, "string_kmeans_clusters_CFB_match_sps_restrict.tsv"), sep = "\t", header = TRUE, fileEncoding = "UTF-8")%>%
   filter(cluster.number == 1)%>%pull(protein.name)
 
 igot_CFB_change_cl1<-filter(igot_CFB_change, GN %in% strings_cluster_gn)%>%
@@ -91,11 +98,8 @@ igot_CFB_change_cl1<-filter(igot_CFB_change, GN %in% strings_cluster_gn)%>%
 CFB_GN_color_set <- function(genes){genes <- sort(unique(genes))
                                     n <- length(genes)
                                     cols <- colorspace::qualitative_hcl(
-                                    n, palette = "Dark 3" )  # "Dark 3" も良い
+                                    n, palette = "Dark 3" )  
                                     setNames(cols, genes)}
-
-# genes<-sort(unique(igot_CFB_change_cl1$GN))
-# CFB_GN_color<- CFB_GN_color_set(genes)
 
 CFB_GN_color<- c("Nrcam" = "#ff1493","Ntrk2" =  "#32cd32",
                  "Cntn1" = "#ffc0cb","Cntn4" = "#ff7f50","Nfasc" =  "#b0e0e6",
@@ -110,7 +114,7 @@ CFB_change_igot_plot<-igot_ave_plot(igot_CFB_change_cl1 ,CFB_GN_color)
 CFB_change_igot_plot
 saveRDS(CFB_change_igot_plot, paste0(output_dir_fig, "CFB_change_site_igot_lineplot.rds"))
 
-#cluster1のgpepの対象糖鎖の動き
+#cluster1 gpep
 
 sps_CFB_incre_ratio_df<-filter(gpep_ratio_zscore, ratio_cluster %in% c(2,3), GlycanComposition %in% incre_glycan, Category == "CF_Bisect")
 sps_CFB_decre_ratio_df<-filter(gpep_ratio_zscore, ratio_cluster %in% 1, GlycanComposition %in% decre_glycan, Category == "CF_Bisect" )
@@ -125,6 +129,4 @@ sps_gpep_c1_long<-trans_longdata_gpep(sps_gpep_cl1,target_glycan_ID)
 CFB_site_share<-gpep_ave_plot(sps_gpep_c1_long, CFB_GN_color)
 CFB_site_share
 saveRDS(CFB_site_share, paste0(output_dir_fig, "CFB_change_gpep_lineplot.rds"))
-
-
 ```

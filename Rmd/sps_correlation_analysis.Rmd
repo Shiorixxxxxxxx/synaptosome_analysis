@@ -15,14 +15,17 @@ library(openxlsx)
 library(maSigPro)
 library(ggplot2)
 
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_pattern_analysis.4.0.R")
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_correlation_analysis.R")
+source("../Rscript/utils_pattern_analysis.4.0.R")
+source("../Rscript/utils_correlation_analysis.R")
 ```
 
 # data input
 ```{r}
-sps_df   <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
-whole_df <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
+
+dir_name<-"../demo_data/expected_output/"
+
+sps_df   <- read.xlsx(paste0(dir_name, "sps_gpep-igot_ratio.xlsx"), sheet = "ratio")
+whole_df <- read.xlsx(paste0(dir_name, "whole_gpep-igot_ratio.xlsx"), sheet = "ratio")
 
 whole_gpep  <- select_colomns_with_distinct_rows(whole_df, "gpep") 
 whole_igot  <- select_colomns_with_distinct_rows(whole_df, "igot")
@@ -67,7 +70,7 @@ sps_output <-
     sps_ratio_zscore
   )
 
- output_dir <- "G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/"
- write.xlsx(whole_output, paste0(output_dir, "whole_pattern_result.4.2_restrict.xlsx"))
- write.xlsx(sps_output, paste0(output_dir, "sps_pattern_result.4.2_restrict.xlsx"))
+ output_dir <- dir_name
+ write.xlsx(whole_output, paste0(output_dir, "whole_pattern_result.xlsx"))
+ write.xlsx(sps_output, paste0(output_dir, "sps_pattern_result.xlsx"))
 ```

@@ -23,20 +23,20 @@ library(textshaping)
 
 library(maSigPro)
 
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_all_igot_analysis.R")
+source("../Rscript/utils_all_igot_analysis.R")
 ```
 
-#site当たりのgpepのカウント
-#IGOTではaccあたりのSiteのカウント
+# Count glycopeptides per site
+# For IGOT data, count sites per accession
 ```{r, fig.width=8, fig.height=5}
-
-output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
-output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/"
+input_dir<-"../demo_data/input/"
+output_dir_fig<-"../demo_data/expected_output/fig/"
+output_dir<-"../demo_data/expected_output/"
 #data input
-sps_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "sps_igot")
-sps_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
-whole_igot <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/data/igot_v3_restrict.xlsx", "whole_igot")
-whole_gpep <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.2_restrict.xlsx", "pattern_result")
+sps_igot <- read.xlsx(paste0(input_dir, "igot.xlsx"), "sps_igot")
+sps_gpep <- read.xlsx(paste0(output_dir, "sps_pattern_result.xlsx"), "pattern_result")
+whole_igot <- read.xlsx(paste0(input_dir, "igot.xlsx"), "whole_igot")
+whole_gpep <- read.xlsx(paste0(output_dir,"whole_pattern_result.xlsx"), "pattern_result")
 
 time_point<-c("p0_1","p0_2","p0_3", "p8_1", "p8_2", "p8_3",
               "2w_1","2w_2","2w_3", "4w_1", "4w_2", "4w_3",
@@ -100,8 +100,8 @@ values_color<-c("whole" = "#3cb371", "synaptosome" = "#ff6347")
 glycan_count_plot<-insite_glycan_violine_plot(plot_data,"fraction", values_color, "nGlycan")
 site_count_plot<-insite_glycan_violine_plot(igot_plot_data,"fraction", values_color, "nsite")
 
-saveRDS(glycan_count_plot, paste0(output_dir_fig, "glycan_count_in_site.rds"))
-saveRDS(site_count_plot, paste0(output_dir_fig, "site_count_in_protein.rds"))
+# saveRDS(glycan_count_plot, paste0(output_dir_fig, "glycan_count_in_site.rds"))
+# saveRDS(site_count_plot, paste0(output_dir_fig, "site_count_in_protein.rds"))
 
 glycan_count_plot
 site_count_plot
@@ -113,16 +113,14 @@ site_count_plot
 #igot matched gpep site
 ```{r}
 # data_input
-s <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
-w <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.2_restrict.xlsx", "pattern_result")
-
-output_dir_fig<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/"
+s <- read.xlsx(paste0(output_dir,"sps_pattern_result.xlsx"), "pattern_result")
+w <- read.xlsx(paste0(output_dir, "whole_pattern_result.xlsx"), "pattern_result")
 
 fraction_color<-c("#32cd32","#fa8072")
 match_gpep_vswhole<-list("whole" = unique(w$acc_site_glycan_ID),"synaptosome" = unique(s$acc_site_glycan_ID)) 
 gpep_match_whole<-venn_analysis(match_gpep_vswhole, fraction_color)
 
-saveRDS(gpep_match_whole, paste0(output_dir_fig, "gpep_w_and_S_venn.rds"))
+# saveRDS(gpep_match_whole, paste0(output_dir_fig, "gpep_w_and_S_venn.rds"))
 
  s_ext_igot <- s %>% 
                filter(!is.na(gpep_igot_correlation))%>%
@@ -144,26 +142,23 @@ w_igot_pattern_group<-w_ext_igot%>%
 
 
 
- output_dir<-"G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/"
 # write.xlsx(s_igot_pattern_group, paste0(output_dir, "sps_igot_cluster_pattern.xlsx"))
 # write.xlsx(w_igot_pattern_group, paste0(output_dir, "whole_igot_cluster_pattern.xlsx"))
 
  
 ```
 
-#pretreatのデータの前処理とvenn analysis
+#pretreat and venn analysis
 ```{r}
 #data
-# sps_igot(imp済み) 
-# whole_igot(imp済み)
+# sps_igot(imp) 
+# whole_igot(imp)
 #total igot
 # data_input
-s <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/sps_pattern_result.4.2_restrict.xlsx", "pattern_result")
-w <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/result/whole_pattern_result.4.2_restrict.xlsx", "pattern_result")
-sps_igot<-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_all_igot_imp_v3_restrict.xlsx")
-whole_igot<-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_all_igot_imp_v3_restrict.xlsx")
-
-
+s <- read.xlsx(paste0(output_dir, "sps_pattern_result.xlsx"), "pattern_result")
+w <- read.xlsx(paste0(output_dir, "whole_pattern_result.xlsx"), "pattern_result")
+sps_igot<-read.xlsx(paste0(output_dir, "sps_all_igot_imp.xlsx"))
+whole_igot<-read.xlsx(paste0(output_dir, "whole_all_igot_imp.xlsx"))
 
 
 sps_imp_df<-sps_igot%>%
@@ -179,14 +174,14 @@ whole_imp_df<-whole_igot%>%
               rename("acc" = "Master.Protein.Accessions")
 
 
-#wholeとのsite match数
+#site match with whole
 fraction_color<-c("#32cd32","#fa8072")
 match_site_list_vswhole<-list("whole" = unique(whole_imp_df$acc_site_ID),"synaptosome" = unique(sps_imp_df$acc_site_ID)) 
 site_match_whole<-venn_analysis(match_site_list_vswhole, fraction_color)
 
-saveRDS(site_match_whole, paste0(output_dir_fig, "igot_w_and_S_venn.rds"))
+# saveRDS(site_match_whole, paste0(output_dir_fig, "igot_w_and_S_venn.rds"))
 
-#gpepとマッチしたサイト数
+#math site number with glycopeptide
 match_site_list<-list("Glycosylation site of IGOT" = unique(sps_imp_df$acc_site_ID),"Glycosylation site of Glycopeptide" = unique(s$site_ID)) 
 match_acc_list<-list("Coreprotein" = unique(sps_imp_df$acc),"Glycoprotein" = unique(s$First_acc)) 
 
@@ -197,22 +192,22 @@ acc_venn<-venn_analysis(match_acc_list, analysis_color)
 plot(site_venn)
 plot(acc_venn)
 
-saveRDS(site_venn, paste0(output_dir_fig, "sps_gpep-igot_match_site.rds"))
-saveRDS(acc_venn, paste0(output_dir_fig, "sps_gpep-igot_match_acc.rds"))
+# saveRDS(site_venn, paste0(output_dir_fig, "sps_gpep-igot_match_site.rds"))
+# saveRDS(acc_venn, paste0(output_dir_fig, "sps_gpep-igot_match_acc.rds"))
 
 
 ```
 
 
-#pretreatのデータの前処理とIGOTデータのpattern analysis
+#pretreat and IGOT data pattern analysis
 ```{r}
 #data
-# sps_igot(imp済み) 
-# whole_igot(imp済み)
-# Nigotで単一のものがあるものはそちらを選択。Nsitehaveが0のもののみ抽出
+# sps_igot(imp) 
+# whole_igot(imp)
+# Select the one where Nigot has a single entry. Extract only those where Nsitehave is 0.
 
-sps_igot <-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_all_igot_imp_v3_restrict.xlsx")
-whole_igot <-read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_all_igot_imp_v3_restrict.xlsx")
+sps_igot <-read.xlsx(paste0(output_dir, "sps_all_igot_imp.xlsx"))
+whole_igot <-read.xlsx(paste0(output_dir, "whole_all_igot_imp.xlsx"))
 
 
 sps_log2m_df<-select(sps_igot, "Master.Protein.Accessions" , "GN", "acc_site_ID", ends_with("log2m"))%>%
@@ -268,8 +263,8 @@ fig_whole_igot  <- plot_pattern_cluster(whole_igot_pattern, 2, "whole", "igot", 
 fig_sps_igot
 fig_whole_igot
 
-saveRDS(fig_sps_igot, paste0(output_dir_fig, "sps_all_igot_pattern.rds"))
-saveRDS(fig_whole_igot, paste0(output_dir_fig, "whole_all_igot_pattern.rds"))
+# saveRDS(fig_sps_igot, paste0(output_dir_fig, "sps_all_igot_pattern.rds"))
+# saveRDS(fig_whole_igot, paste0(output_dir_fig, "whole_all_igot_pattern.rds"))
 
 sps_igot_cluster<-obtain_cluster_with_ID(sps_igot_res, "igot_cluster")%>%
                   rename("acc_site_ID"="site_ID")
@@ -332,7 +327,7 @@ decre_acc<-extract_items(igot_pattern_venn@label_df, "Decreased")
 
 plot(igot_pattern_venn)
 
-saveRDS(igot_pattern_venn, paste0(output_dir_fig, "igot_occupancy_venn.rds"))
+# saveRDS(igot_pattern_venn, paste0(output_dir_fig, "igot_occupancy_venn.rds"))
 
 s_incre_GN<-output_zscore_sheet%>%
             filter(acc %in% incre_acc)
@@ -360,12 +355,12 @@ GO_s_decre_CC<-GO_plot(s_decre_GO_CC, "CC")
 GO_s_incre_BP<-GO_plot(s_incre_GO_BP, "BP")
 GO_s_decre_BP<-GO_plot(s_decre_GO_BP, "BP") 
 
-saveRDS(GO_s_incre_MF, paste0(output_dir_fig, "GO_s_incre_MF.rds"))
-saveRDS(GO_s_decre_MF, paste0(output_dir_fig, "GO_s_decre_MF.rds"))
-saveRDS(GO_s_incre_CC, paste0(output_dir_fig, "GO_s_incre_CC.rds"))
-saveRDS(GO_s_decre_CC, paste0(output_dir_fig, "GO_s_decre_CC.rds"))
-saveRDS(GO_s_incre_BP, paste0(output_dir_fig, "GO_s_incre_BP.rds"))
-saveRDS(GO_s_decre_BP, paste0(output_dir_fig, "GO_s_decre_BP.rds"))
+# saveRDS(GO_s_incre_MF, paste0(output_dir_fig, "GO_s_incre_MF.rds"))
+# saveRDS(GO_s_decre_MF, paste0(output_dir_fig, "GO_s_decre_MF.rds"))
+# saveRDS(GO_s_incre_CC, paste0(output_dir_fig, "GO_s_incre_CC.rds"))
+# saveRDS(GO_s_decre_CC, paste0(output_dir_fig, "GO_s_decre_CC.rds"))
+# saveRDS(GO_s_incre_BP, paste0(output_dir_fig, "GO_s_incre_BP.rds"))
+# saveRDS(GO_s_decre_BP, paste0(output_dir_fig, "GO_s_decre_BP.rds"))
 
 tar_ID<-"GO:0050839" #cell adhesion molecule binding
 GO_res<-s_incre_GO
@@ -387,12 +382,11 @@ incre_adh_GO<-output_zscore_sheet%>%
 adh_GO_decre<-GO_plot(decre_adh_GO, "CC")
 adh_GO_incre<-GO_plot(incre_adh_GO, "CC")
 
-saveRDS(adh_GO_decre, paste0(output_dir_fig, "igot_GO_adh_decre_CC.rds"))
-saveRDS(adh_GO_incre, paste0(output_dir_fig, "igot_GO_adh_incre_CC.rds"))
+# saveRDS(adh_GO_decre, paste0(output_dir_fig, "igot_GO_adh_decre_CC.rds"))
+# saveRDS(adh_GO_incre, paste0(output_dir_fig, "igot_GO_adh_incre_CC.rds"))
 
 # write.xlsx(str_df, paste0(output_dir, "sps_igot_GO_adhesion_molecules_for_strings.xlsx"))
 
-#抽出した2つのcell adhesion molecule bindingを、再度BPでGO
 
 overlap_acc<-extract_items(igot_pattern_venn@label_df, "overlap")
 occu_change_df<-output_zscore_sheet %>% filter(acc %in% overlap_acc)
@@ -433,18 +427,13 @@ Lingo1<-occu_acc_df%>%
 Itgb1<-occu_acc_df%>% 
         filter(GN_site %in% c("Itgb1_44(NCGW)/50(NTTF)", "Itgb1_50(NTTF)"))%>%
         igot_GN_plot(GN_color_pallet, "Itgb1")
-Ptprz1<-igot_GN_plot(occu_acc_df, GN_color_pallet, "Ptprz1")
-Lamp2<-igot_GN_plot(occu_acc_df, GN_color, "Lamp2")
 
-
-saveRDS(Lingo1, paste0(output_dir_fig,"sps_igot_Lingo1_pattern.rds"))
-saveRDS(Itgb1, paste0(output_dir_fig,"sps_igot_Itgb1_pattern.rds"))
+# saveRDS(Lingo1, paste0(output_dir_fig,"sps_igot_Lingo1_pattern.rds"))
+# saveRDS(Itgb1, paste0(output_dir_fig,"sps_igot_Itgb1_pattern.rds"))
 
 
 Lingo1
 Itgb1
-Ptprz1
-Lamp2
 
 
 ```

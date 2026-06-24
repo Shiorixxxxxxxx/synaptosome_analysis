@@ -14,13 +14,15 @@ library(openxlsx)
 library(maSigPro)
 library(ggplot2)
 
-source("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/utils_pattern_analysis.4.0.R")
+source("../Rscript/utils_pattern_analysis.4.0.R")
 ```
 
 # data input
 ```{r}
-sps_df   <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/sps_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
-whole_df <- read.xlsx("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/temp/whole_gpep-igot_ratio_4.2_restrict.xlsx", sheet = "ratio")
+dir_name<-"../demo_data/expected_output/"
+
+sps_df   <- read.xlsx(paste0(dir_name, "sps_gpep-igot_ratio.xlsx"), sheet = "ratio")
+whole_df <- read.xlsx(paste0(dir_name, "whole_gpep-igot_ratio.xlsx"), sheet = "ratio")
 
 whole_gpep  <- select_colomns_with_distinct_rows(whole_df, "gpep") 
 whole_igot  <- select_colomns_with_distinct_rows(whole_df, "igot")
@@ -32,9 +34,6 @@ sps_ratio   <- select_colomns_with_distinct_rows(sps_df, "ratio")
 
 
 ```{r}
-## 修正した点
-# pattern_input_data ==> transform_input_zscore (名前から目的わかるように書く)
-# pattern_analysis ==> extract_sig_vars
 
 # transform abundance into z-scores
 whole_gpep_zscore  <- transform_input_zscore(whole_gpep, "whole", "gpep")
@@ -44,7 +43,6 @@ sps_gpep_zscore    <- transform_input_zscore(sps_gpep, "sps", "gpep")
 sps_igot_zscore    <- transform_input_zscore(sps_igot, "sps", "igot")
 sps_ratio_zscore   <- transform_input_zscore(sps_ratio, "sps", "ratio")
 
-# write.xlsx(sps_gpep, "G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/code/check.xlsx")
 
 # extract significant genes in fitting the time series
 whole_gpep_res  <- extract_sig_vars(whole_gpep_zscore, "whole_gpep")
@@ -74,7 +72,7 @@ fig_sps_igot    <- plot_pattern_cluster(sps_igot_res, 2, "sps", "igot", "cluster
 fig_sps_ratio   <- plot_pattern_cluster(sps_ratio_res, 3, "sps", "ratio", "cluster", "decre")
 
 
-output_dir_fig<-("G:/Amed brain/glyco-decipher/240612_mouse_sps/analysis result 3 _MBR/zhang_final code/fig_temp/")
+output_dir_fig<-paste0(dir_name, "fig/")
 saveRDS(fig_whole_gpep, paste0(output_dir_fig, "pattern_whole_gpep.rds"))
 saveRDS(fig_whole_igot, paste0(output_dir_fig, "pattern_fig_whole_igot.rds"))
 saveRDS(fig_whole_ratio, paste0(output_dir_fig, "pattern_fig_whole_ratio.rds"))
