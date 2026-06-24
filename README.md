@@ -68,6 +68,12 @@ Major R packages used in this analysis include:
 
 Users should install the required CRAN and Bioconductor packages before running the R Markdown scripts. Package versions used for the manuscript analyses are documented in `sessionInfo.txt`.
 
+Installation time: approximately 5 minutes.
+
+**Typical installation time:** approximately 5 minutes on a standard desktop computer.
+
+**Expected run time for the demo dataset:** approximately 30–60 minutes on a standard desktop computer.
+
 ## Data availability
 
 The input datasets are deposited in Zenodo under DOI: `10.5281/zenodo.20623437`. During peer review, the files are available to editors and reviewers via the private Zenodo access link provided at submission. The files will be made publicly available upon publication.
